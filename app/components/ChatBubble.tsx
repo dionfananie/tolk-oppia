@@ -15,7 +15,11 @@ type Props = {
 export function ChatBubble({ message, who, tags }: Props) {
 	const isUser = message.role === "user";
 	return (
-		<div className={`flex gap-3 rounded-xl p-4 ${isUser ? "bg-surface" : "border border-line-soft bg-paper"}`}>
+		<div
+			className={`flex gap-3 rounded-lg p-4 ${
+				isUser ? "bg-surface" : "border border-line-soft bg-paper"
+			}`}
+		>
 			<div className="min-w-0">
 				<div className="mb-1 flex items-center gap-2">
 					<span className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-muted">
@@ -40,16 +44,16 @@ export function ChatBubble({ message, who, tags }: Props) {
 
 export function TypingIndicator({ who }: { who?: string }) {
 	return (
-		<div className="flex gap-3 rounded-xl border border-line-soft bg-paper p-4">
+		<div className="flex gap-3 rounded-lg border border-line-soft bg-paper p-4">
 			<div className="min-w-0">
 				<p className="mb-2 font-mono text-xs font-semibold uppercase tracking-[0.1em] text-muted">
 					{who ?? "Coach"}
 				</p>
-				<span className="flex items-center gap-1">
+				<span className="flex items-center gap-1.5">
 					{[0, 150, 300].map((delay) => (
 						<span
 							key={delay}
-							className="size-[5px] animate-bounce rounded-full bg-meta"
+							className="size-2 animate-bounce rounded-full bg-accent"
 							style={{ animationDelay: `${delay}ms` }}
 						/>
 					))}

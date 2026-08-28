@@ -1,6 +1,8 @@
 import { Link } from "react-router";
 import type { Route } from "./+types/home";
 import { Brand } from "~/components/Brand";
+import { Button } from "~/components/Button";
+import { ThemeToggle } from "~/components/ThemeToggle";
 import { Orb } from "~/components/Orb";
 import {
 	IconBriefcase,
@@ -40,36 +42,12 @@ const STEPS = [
 ];
 
 const CATEGORY_ROWS = [
-	{
-		title: "Workplace",
-		body: "Status updates, stand-ups, difficult conversations.",
-		icon: IconChat,
-	},
-	{
-		title: "Business",
-		body: "Negotiations, client calls, follow-ups.",
-		icon: IconBriefcase,
-	},
-	{
-		title: "Presentation",
-		body: "Pitches, demos, exec updates.",
-		icon: IconMic,
-	},
-	{
-		title: "Negotiation",
-		body: "Salary talks, scope, deadlines.",
-		icon: IconList,
-	},
-	{
-		title: "Interview",
-		body: "Behavioral questions, salary, follow-ups.",
-		icon: IconInterview,
-	},
-	{
-		title: "Client call",
-		body: "Discovery calls, renewals, support escalations.",
-		icon: IconChat,
-	},
+	{ title: "Workplace", body: "Status updates, stand-ups, difficult conversations.", icon: IconChat },
+	{ title: "Business", body: "Negotiations, client calls, follow-ups.", icon: IconBriefcase },
+	{ title: "Presentation", body: "Pitches, demos, exec updates.", icon: IconMic },
+	{ title: "Negotiation", body: "Salary talks, scope, deadlines.", icon: IconList },
+	{ title: "Interview", body: "Behavioral questions, salary, follow-ups.", icon: IconInterview },
+	{ title: "Client call", body: "Discovery calls, renewals, support escalations.", icon: IconChat },
 ];
 
 const VOICE_POINTS = [
@@ -81,33 +59,29 @@ const VOICE_POINTS = [
 export default function Home() {
 	return (
 		<div className="bg-paper text-ink">
-			<header className="sticky top-0 z-[60] border-b border-paper/10 bg-ink/55 backdrop-blur">
+			<header className="sticky top-0 z-[60] border-b border-line-soft bg-paper/85 backdrop-blur">
 				<div className="mx-auto flex h-14 max-w-[1024px] items-center gap-6 px-4 sm:px-6">
-					<Brand dark />
+					<Brand to="/" />
 					<nav aria-label="Primary" className="hidden items-center gap-1 md:flex">
-						<a href="#how-it-works" className="rounded-full px-3.5 py-2 text-sm font-semibold text-surface transition hover:bg-paper/10 hover:text-paper">
+						<a href="#how-it-works" className="rounded-lg px-3.5 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface hover:text-ink">
 							How it works
 						</a>
-						<a href="#scenarios" className="rounded-full px-3.5 py-2 text-sm font-semibold text-surface transition hover:bg-paper/10 hover:text-paper">
+						<a href="#scenarios" className="rounded-lg px-3.5 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface hover:text-ink">
 							Scenarios
 						</a>
-						<a href="#voice" className="rounded-full px-3.5 py-2 text-sm font-semibold text-surface transition hover:bg-paper/10 hover:text-paper">
+						<a href="#voice" className="rounded-lg px-3.5 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface hover:text-ink">
 							Voice
 						</a>
-						<a href="#byok" className="rounded-full px-3.5 py-2 text-sm font-semibold text-surface transition hover:bg-paper/10 hover:text-paper">
+						<a href="#byok" className="rounded-lg px-3.5 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface hover:text-ink">
 							Your keys
 						</a>
 					</nav>
 					<div className="ml-auto flex items-center gap-2">
-						<Link to="/login" className="rounded-full px-4 py-2 text-sm font-semibold text-paper transition hover:bg-paper/10">
+						<ThemeToggle />
+						<Link to="/login" className="hidden rounded-lg px-4 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface hover:text-ink sm:inline-flex sm:min-h-[44px] sm:items-center">
 							Sign in
 						</Link>
-						<Link
-							to="/practice"
-							className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-paper transition hover:bg-accent-dark"
-						>
-							Start practicing
-						</Link>
+						<Button to="/practice">Start practicing</Button>
 					</div>
 				</div>
 			</header>
@@ -125,22 +99,19 @@ export default function Home() {
 						and helps you sound professional.
 					</p>
 					<div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-						<Link
-							to="/practice"
-							className="inline-flex min-h-[52px] items-center rounded-full bg-accent px-7 py-3.5 text-base font-semibold text-paper transition hover:bg-accent-dark"
-						>
+						<Button to="/practice" size="lg">
 							Start practicing
-						</Link>
+						</Button>
 						<Link
 							to="/login"
-							className="inline-flex min-h-[52px] items-center rounded-full border border-paper/20 bg-paper/10 px-7 py-3.5 text-base font-semibold text-paper transition hover:bg-paper/20"
+							className="inline-flex min-h-[52px] items-center rounded-lg border border-paper/20 bg-paper/10 px-7 py-3.5 text-base font-semibold text-paper transition-colors hover:bg-paper/20"
 						>
 							I have an account
 						</Link>
 					</div>
 
-					<div className="mx-auto mt-16 max-w-[560px] rounded-xl border border-paper/15 bg-paper/5 p-5 text-left sm:mt-[72px]">
-						<div className="rounded-xl bg-paper/10 p-4">
+					<div className="mx-auto mt-16 max-w-[560px] rounded-lg border border-paper/15 bg-paper/5 p-5 text-left sm:mt-[72px]">
+						<div className="rounded-lg bg-paper/10 p-4">
 							<div className="mb-1 flex items-center gap-2">
 								<span className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-paper">
 									You
@@ -153,7 +124,7 @@ export default function Home() {
 								&ldquo;We are currently facing some problems with the API.&rdquo;
 							</p>
 						</div>
-						<div className="mt-2.5 rounded-xl border border-paper/15 bg-transparent p-4">
+						<div className="mt-2.5 rounded-lg border border-paper/15 bg-transparent p-4">
 							<div className="mb-1 flex items-center gap-2">
 								<span className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-paper">
 									Coach
@@ -182,7 +153,7 @@ export default function Home() {
 					</div>
 					<div className="mt-12 grid gap-4 md:grid-cols-3">
 						{STEPS.map((step) => (
-							<div key={step.n} className="flex gap-4 rounded-xl border border-line bg-paper p-5">
+							<div key={step.n} className="flex gap-4 rounded-lg border border-line bg-paper p-5">
 								<span className="grid size-[34px] flex-none place-items-center rounded-full bg-ink font-mono text-sm font-bold text-paper">
 									{step.n}
 								</span>
@@ -207,13 +178,13 @@ export default function Home() {
 								Roleplay for the room you&rsquo;re in.
 							</h2>
 						</div>
-						<Link to="/practice" className="text-sm font-semibold text-accent transition hover:text-accent-dark">
+						<Button to="/practice" variant="ghost">
 							Browse all scenarios
-						</Link>
+						</Button>
 					</div>
 					<div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 						{CATEGORY_ROWS.map((row) => (
-							<div key={row.title} className="flex gap-4 rounded-xl border border-line bg-paper p-5">
+							<div key={row.title} className="flex gap-4 rounded-lg border border-line bg-paper p-5">
 								<span className="grid size-[34px] flex-none place-items-center rounded-full bg-ink text-paper">
 									<row.icon className="size-[17px]" />
 								</span>
@@ -248,12 +219,9 @@ export default function Home() {
 								</li>
 							))}
 						</ul>
-						<Link
-							to="/practice"
-							className="mt-7 inline-flex min-h-[44px] items-center rounded-full bg-accent px-6 py-2.5 text-sm font-semibold text-paper transition hover:bg-accent-dark"
-						>
-							Try a conversation
-						</Link>
+						<div className="mt-7">
+							<Button to="/practice">Try a conversation</Button>
+						</div>
 					</div>
 					<div className="grid place-items-center">
 						<Orb name="Coach" sub="AI roleplay" state="idle" className="size-[190px]" />
@@ -275,7 +243,7 @@ export default function Home() {
 							just grammatically correct.
 						</p>
 					</div>
-					<div className="order-1 rounded-xl border border-line bg-paper p-6 md:order-2">
+					<div className="order-1 rounded-lg border border-line bg-paper p-6 md:order-2">
 						<p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted">You said</p>
 						<blockquote className="mt-1 text-base leading-[1.45] text-ink">
 							&ldquo;I don&rsquo;t think this solution is good.&rdquo;
@@ -297,7 +265,7 @@ export default function Home() {
 
 			<section id="byok" className="py-16 md:py-24">
 				<div className="mx-auto max-w-[760px] px-4 text-center sm:px-6">
-					<div className="rounded-xl bg-surface p-10 sm:p-12">
+					<div className="rounded-lg bg-surface p-10 sm:p-12">
 						<p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-muted">
 							Your keys, your data
 						</p>
@@ -308,12 +276,9 @@ export default function Home() {
 							Connect your own LLM key. DeepSeek or GLM, whatever you already pay for.
 							Conversations stay in your browser.
 						</p>
-						<Link
-							to="/settings"
-							className="mt-7 inline-flex min-h-[44px] items-center rounded-full bg-accent px-6 py-2.5 text-sm font-semibold text-paper transition hover:bg-accent-dark"
-						>
-							See supported providers
-						</Link>
+						<div className="mt-7">
+							<Button to="/settings">See supported providers</Button>
+						</div>
 					</div>
 				</div>
 			</section>
@@ -327,15 +292,12 @@ export default function Home() {
 						Start free. No credit card, and no AI key required to try it.
 					</p>
 					<div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-						<Link
-							to="/practice"
-							className="inline-flex min-h-[52px] items-center rounded-full bg-accent px-7 py-3.5 text-base font-semibold text-paper transition hover:bg-accent-dark"
-						>
+						<Button to="/practice" size="lg">
 							Start practicing
-						</Link>
+						</Button>
 						<Link
 							to="/practice"
-							className="inline-flex min-h-[52px] items-center rounded-full border border-paper/20 bg-paper/10 px-7 py-3.5 text-base font-semibold text-paper transition hover:bg-paper/20"
+							className="inline-flex min-h-[52px] items-center rounded-lg border border-paper/20 bg-paper/10 px-7 py-3.5 text-base font-semibold text-paper transition-colors hover:bg-paper/20"
 						>
 							Browse scenarios
 						</Link>
@@ -345,15 +307,15 @@ export default function Home() {
 
 			<footer className="border-t border-line-soft bg-surface-warm py-12">
 				<div className="mx-auto flex max-w-[1024px] flex-wrap items-center justify-between gap-6 px-4 sm:px-6">
-					<p className="text-sm text-muted">TOLK · AI Business English Coach</p>
+					<p className="text-sm text-meta">TOLK · AI Business English Coach</p>
 					<div className="flex gap-6 text-sm font-semibold">
-						<a href="#how-it-works" className="text-ink-2 transition hover:text-ink">
+						<a href="#how-it-works" className="text-ink-2 transition-colors hover:text-ink">
 							How it works
 						</a>
-						<a href="#byok" className="text-ink-2 transition hover:text-ink">
+						<a href="#byok" className="text-ink-2 transition-colors hover:text-ink">
 							Privacy
 						</a>
-						<Link to="/login" className="text-ink-2 transition hover:text-ink">
+						<Link to="/login" className="text-ink-2 transition-colors hover:text-ink">
 							Sign in
 						</Link>
 					</div>

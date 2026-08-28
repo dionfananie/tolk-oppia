@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { Brand } from "~/components/Brand";
+import { Button } from "~/components/Button";
+import { ThemeToggle } from "~/components/ThemeToggle";
 import { IconChart, IconClock, IconMic, IconSliders } from "~/components/icons";
 
 export type NavKey = "dashboard" | "practice" | "progress" | "history" | "settings";
@@ -25,7 +27,7 @@ type Props = {
 export function AppShell({ active, children }: Props) {
 	return (
 		<div className="min-h-dvh bg-paper text-ink">
-			<header className="sticky top-0 z-[60] border-b border-line-soft bg-paper/85 backdrop-blur">
+			<header className="sticky top-0 z-[60] border-b border-line-soft bg-paper/90 backdrop-blur">
 				<div className="mx-auto flex h-14 max-w-[1024px] items-center gap-6 px-4 sm:px-6">
 					<Brand to="/app" />
 					<nav aria-label="Primary" className="ml-4 hidden items-center gap-1 sm:flex">
@@ -36,7 +38,7 @@ export function AppShell({ active, children }: Props) {
 									key={item.key}
 									to={item.to}
 									aria-current={current ? "page" : undefined}
-									className={`rounded-full px-3.5 py-2 text-sm font-semibold transition ${
+									className={`rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors ${
 										current
 											? "bg-surface text-ink"
 											: "text-ink-2 hover:bg-surface hover:text-ink"
@@ -47,13 +49,9 @@ export function AppShell({ active, children }: Props) {
 							);
 						})}
 					</nav>
-					<div className="ml-auto">
-						<Link
-							to="/practice"
-							className="inline-flex min-h-[38px] items-center rounded-full bg-accent px-4 py-2 text-sm font-semibold text-paper transition hover:bg-accent-dark"
-						>
-							Start Practice
-						</Link>
+					<div className="ml-auto flex items-center gap-2">
+						<ThemeToggle />
+						<Button to="/practice">Start Practice</Button>
 					</div>
 				</div>
 			</header>
@@ -73,7 +71,7 @@ export function AppShell({ active, children }: Props) {
 							key={item.key}
 							to={item.to}
 							aria-current={current ? "page" : undefined}
-							className={`flex flex-col items-center gap-0.5 px-2 pb-2.5 pt-2 text-[11px] font-semibold transition ${
+							className={`flex flex-col items-center gap-0.5 px-2 pb-2.5 pt-2 text-[11px] font-semibold transition-colors ${
 								current ? "text-accent" : "text-muted"
 							}`}
 						>

@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import type { Route } from "./+types/history";
 import { AppShell } from "~/components/AppShell";
+import { Button } from "~/components/Button";
 import { ChipGroup } from "~/components/ChipGroup";
+import { EmptyState } from "~/components/EmptyState";
 import { IconChevronRight } from "~/components/icons";
 import { getScenario, CATEGORIES, type CategoryId } from "~/data/scenarios";
 import { deleteSession, getSessions, type Session } from "~/lib/storage";
@@ -59,25 +61,20 @@ export default function History() {
 			</div>
 
 			{sessions.length === 0 ? (
-				<div className="mt-6 rounded-xl border border-dashed border-line bg-paper px-6 py-12 text-center">
-					<p className="text-sm font-semibold text-ink-2">No practice sessions yet.</p>
-					<p className="mx-auto mt-1 max-w-sm text-sm text-muted">
-						Complete your first practice conversation and its feedback will show up here.
-					</p>
-					<Link
-						to="/practice"
-						className="mt-5 inline-flex min-h-[44px] items-center rounded-full bg-accent px-6 py-2.5 text-sm font-semibold text-paper transition hover:bg-accent-dark"
+				<div className="mt-6 rounded-lg border border-dashed border-line bg-paper">
+					<EmptyState
+						title="No practice sessions yet."
+						body="Complete your first practice conversation and its feedback will show up here."
 					>
-						Start practicing
-					</Link>
+						<Button to="/practice">Start practicing</Button>
+					</EmptyState>
 				</div>
 			) : filtered.length === 0 ? (
-				<div className="mt-6 rounded-xl border border-dashed border-line bg-paper px-6 py-12 text-center">
-					<p className="text-sm font-semibold text-ink-2">No sessions in this category.</p>
-					<p className="mt-1 text-sm text-muted">Try another filter.</p>
+				<div className="mt-6 rounded-lg border border-dashed border-line bg-paper">
+					<EmptyState title="No sessions in this category." body="Try another filter." />
 				</div>
 			) : (
-				<div className="mt-6 overflow-hidden rounded-xl border border-line bg-paper">
+				<div className="mt-6 overflow-hidden rounded-lg border border-line bg-paper">
 					{filtered.map((session) => {
 						const scenario = getScenario(session.scenarioId);
 						return (
@@ -95,12 +92,9 @@ export default function History() {
 												.toUpperCase()
 										: "?"}
 								</span>
-								<Link
-									to={`/results/${session.id}`}
-									className="group flex min-w-0 flex-1 items-center gap-4"
-								>
+								<Link to={`/results/${session.id}`} className="group flex min-w-0 flex-1 items-center gap-4">
 									<div className="min-w-0 flex-1">
-										<p className="truncate text-sm font-semibold text-ink transition group-hover:text-accent-dark">
+										<p className="truncate text-sm font-semibold text-ink transition-colors group-hover:text-accent-dark">
 											{scenario?.title ?? "Unknown scenario"}
 										</p>
 										<p className="mt-0.5 truncate text-sm text-muted">
@@ -108,16 +102,14 @@ export default function History() {
 											{formatDateTime(session.endedAt)}
 										</p>
 									</div>
-									<span className="font-mono text-sm font-semibold text-accent">
-										{session.score}
-									</span>
+									<span className="font-mono text-sm font-semibold text-accent">{session.score}</span>
 									<IconChevronRight className="size-[18px] flex-none text-meta" />
 								</Link>
 								<button
 									type="button"
 									onClick={() => remove(session.id)}
 									aria-label="Delete session"
-									className="grid size-[36px] flex-none place-items-center rounded-sm text-meta transition hover:text-danger"
+									className="grid size-[36px] flex-none place-items-center rounded-lg text-meta transition-colors hover:bg-danger/10 hover:text-danger focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-paper focus:outline-none"
 								>
 									<svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
 										<path d="M6 18L18 6M6 6l12 12" />

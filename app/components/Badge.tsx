@@ -17,7 +17,11 @@ type Props = {
 
 export function Badge({ children, dot }: Props) {
 	return (
-		<span className="inline-flex min-h-[24px] items-center gap-1.5 whitespace-nowrap rounded-full bg-surface px-2.5 py-0.5 text-xs font-semibold tracking-[0.01em] text-muted">
+		<span
+			className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+				dot ? "bg-surface text-ink-2" : "bg-surface text-muted"
+			}`}
+		>
 			{dot && <span className={`size-[6px] rounded-full ${DOT_TONES[dot]}`} />}
 			{children}
 		</span>

@@ -16,10 +16,10 @@ export function ChipGroup({ value, onChange, options, label }: Props) {
 						type="button"
 						aria-pressed={active}
 						onClick={() => onChange(option.value)}
-						className={`inline-flex min-h-[38px] items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition ${
+						className={`inline-flex min-h-[38px] items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition-colors focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-paper focus:outline-none ${
 							active
-								? "border-ink bg-ink text-paper"
-								: "border-line bg-paper text-ink-2 hover:border-meta hover:text-ink"
+								? "border-accent bg-accent text-paper"
+								: "border-line bg-paper text-ink-2 hover:bg-surface hover:text-ink"
 						}`}
 					>
 						{option.label}

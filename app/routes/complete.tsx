@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import type { Route } from "./+types/complete";
 import { AppShell } from "~/components/AppShell";
+import { Button } from "~/components/Button";
 import { ScoreRing } from "~/components/ScoreRing";
 import { getScenario } from "~/data/scenarios";
 import { getSession, type Session } from "~/lib/storage";
@@ -40,7 +41,7 @@ export default function Complete() {
 
 	return (
 		<AppShell active="practice">
-			<div className="mx-auto mt-6 max-w-[520px] rounded-xl bg-paper px-10 py-14 text-center shadow-[0_2px_8px_rgba(0,0,0,0.05)] ring-1 ring-line">
+			<div className="mx-auto mt-6 max-w-[520px] rounded-lg bg-paper px-10 py-14 text-center shadow-sm ring-1 ring-line">
 				<p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-muted">
 					Session complete
 				</p>
@@ -55,32 +56,20 @@ export default function Complete() {
 
 				<div className="grid grid-cols-2 gap-4">
 					<div>
-						<p className="font-mono text-lg font-semibold text-ink">
-							{formatClock(durationSeconds)}
-						</p>
+						<p className="font-mono text-lg font-semibold text-ink">{formatClock(durationSeconds)}</p>
 						<p className="mt-1 text-sm text-muted">Duration</p>
 					</div>
 					<div>
-						<p className="font-mono text-lg font-semibold text-ink">
-							{LEVEL_CEFR[session.level]}
-						</p>
+						<p className="font-mono text-lg font-semibold text-ink">{LEVEL_CEFR[session.level]}</p>
 						<p className="mt-1 text-sm text-muted">Level</p>
 					</div>
 				</div>
 
 				<div className="mt-8 grid gap-3 sm:grid-cols-2">
-					<Link
-						to={`/results/${session.id}`}
-						className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-paper transition hover:bg-accent-dark"
-					>
-						See Feedback
-					</Link>
-					<Link
-						to={`/practice/${session.scenarioId}/setup`}
-						className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-line bg-paper px-4 py-2.5 text-sm font-semibold text-ink transition hover:border-meta"
-					>
+					<Button to={`/results/${session.id}`}>See Feedback</Button>
+					<Button to={`/practice/${session.scenarioId}/setup`} variant="secondary">
 						Practice Again
-					</Link>
+					</Button>
 				</div>
 			</div>
 		</AppShell>

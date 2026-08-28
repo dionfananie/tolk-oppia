@@ -2,14 +2,13 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import type { Route } from "./+types/login";
 import { AuthShell } from "~/components/AuthShell";
+import { Button } from "~/components/Button";
 import { Switch } from "~/components/Switch";
+import { inputClass } from "~/lib/ui";
 
 export function meta({}: Route.MetaArgs) {
 	return [{ title: "Sign in · TOLK" }];
 }
-
-const FIELD_INPUT =
-	"w-full rounded-[4px] border border-meta bg-paper px-3.5 py-3 text-base text-ink placeholder:text-meta transition hover:border-ink-2 focus:border-accent focus:shadow-[0_0_0_3px_color-mix(in_oklab,#3e6ae1_30%,transparent)] focus:outline-none";
 
 export default function Login() {
 	const navigate = useNavigate();
@@ -39,7 +38,7 @@ export default function Login() {
 		>
 			<form onSubmit={submit} className="mt-6 flex flex-col gap-4">
 				<div className="flex flex-col gap-[7px]">
-					<label htmlFor="login-email" className="text-sm font-semibold text-ink">
+					<label htmlFor="login-email" className="text-sm font-medium text-ink">
 						Email
 					</label>
 					<input
@@ -49,11 +48,11 @@ export default function Login() {
 						placeholder="you@company.com"
 						value={email}
 						onChange={(event) => setEmail(event.target.value)}
-						className={FIELD_INPUT}
+						className={inputClass}
 					/>
 				</div>
 				<div className="flex flex-col gap-[7px]">
-					<label htmlFor="login-password" className="text-sm font-semibold text-ink">
+					<label htmlFor="login-password" className="text-sm font-medium text-ink">
 						Password
 					</label>
 					<input
@@ -61,19 +60,14 @@ export default function Login() {
 						type="password"
 						autoComplete="current-password"
 						placeholder="Your password"
-						className={FIELD_INPUT}
+						className={inputClass}
 					/>
 				</div>
-				<div className="flex items-center justify-between gap-4">
-					<Switch checked={remember} onChange={setRemember} label="Remember me" />
-				</div>
+				<Switch checked={remember} onChange={setRemember} label="Remember me" id="login-remember" />
 				{error && <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
-				<button
-					type="submit"
-					className="min-h-[44px] rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-paper transition hover:bg-accent-dark"
-				>
+				<Button type="submit" size="lg">
 					Continue
-				</button>
+				</Button>
 			</form>
 			<p className="mt-5 rounded-md bg-surface px-3 py-2.5 text-sm leading-relaxed text-muted">
 				TOLK has no server account system yet. Everything runs in this browser, so continuing

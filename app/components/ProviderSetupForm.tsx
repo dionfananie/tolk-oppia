@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { PROVIDER_META, defaultModel, getModels, type ProviderName } from "~/lib/providers";
 import type { Setup } from "~/lib/storage";
+import { inputClass } from "~/lib/ui";
 
 type Props = {
 	initial?: Setup | null;
@@ -8,9 +9,6 @@ type Props = {
 	submitLabel?: string;
 	compact?: boolean;
 };
-
-const FIELD_INPUT =
-	"w-full rounded-[4px] border border-meta bg-paper px-3.5 py-3 text-base text-ink placeholder:text-meta transition hover:border-ink-2 focus:border-accent focus:shadow-[0_0_0_3px_color-mix(in_oklab,#3e6ae1_30%,transparent)] focus:outline-none";
 
 export function ProviderSetupForm({
 	initial,
@@ -45,7 +43,7 @@ export function ProviderSetupForm({
 	return (
 		<form onSubmit={submit} className="space-y-5">
 			<div>
-				<p className="mb-2 text-sm font-semibold text-ink">Provider</p>
+				<p className="mb-2 text-sm font-medium text-ink">Provider</p>
 				<div className={`grid gap-3 ${compact ? "sm:grid-cols-1" : "sm:grid-cols-2"}`}>
 					{PROVIDER_META.map((meta) => {
 						const active = provider === meta.provider;
@@ -55,15 +53,15 @@ export function ProviderSetupForm({
 								type="button"
 								onClick={() => changeProvider(meta.provider)}
 								aria-pressed={active}
-								className={`rounded-xl border p-4 text-left transition ${
+								className={`rounded-lg border p-4 text-left transition-colors focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-paper focus:outline-none ${
 									active
-										? "border-accent shadow-[0_0_0_3px_color-mix(in_oklab,#3e6ae1_30%,transparent)]"
-										: "border-line bg-paper hover:border-meta"
+										? "border-accent bg-accent/5"
+										: "border-line bg-paper hover:border-meta hover:bg-surface"
 								}`}
 							>
 								<p className="flex items-center gap-2 text-sm font-semibold text-ink">
 									<span
-										className={`size-4 rounded-full border-2 transition ${
+										className={`size-4 rounded-full border-2 transition-colors ${
 											active ? "border-[5px] border-accent" : "border-line"
 										}`}
 									/>
@@ -79,15 +77,10 @@ export function ProviderSetupForm({
 			</div>
 
 			<div className="flex flex-col gap-[7px]">
-				<label htmlFor="model" className="text-sm font-semibold text-ink">
+				<label htmlFor="model" className="text-sm font-medium text-ink">
 					Model
 				</label>
-				<select
-					id="model"
-					value={model}
-					onChange={(event) => setModel(event.target.value)}
-					className={FIELD_INPUT}
-				>
+				<select id="model" value={model} onChange={(event) => setModel(event.target.value)} className={inputClass}>
 					{models.map((m) => (
 						<option key={m.id} value={m.id}>
 							{m.id} · {m.description}
@@ -97,7 +90,7 @@ export function ProviderSetupForm({
 			</div>
 
 			<div className="flex flex-col gap-[7px]">
-				<label htmlFor="api-key" className="text-sm font-semibold text-ink">
+				<label htmlFor="api-key" className="text-sm font-medium text-ink">
 					API key
 				</label>
 				<input
@@ -108,7 +101,7 @@ export function ProviderSetupForm({
 					value={apiKey}
 					onChange={(event) => setApiKey(event.target.value)}
 					placeholder={`Paste your ${provider} API key`}
-					className={FIELD_INPUT}
+					className={inputClass}
 				/>
 				<p className="text-sm text-muted">
 					Your key is used only for AI requests from this browser and is never stored.
@@ -119,7 +112,7 @@ export function ProviderSetupForm({
 
 			<button
 				type="submit"
-				className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-paper transition hover:bg-accent-dark focus:outline-none focus:ring-2 focus:ring-accent/40"
+				className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-paper transition-colors hover:bg-accent-dark focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-paper focus:outline-none"
 			>
 				{submitLabel}
 			</button>

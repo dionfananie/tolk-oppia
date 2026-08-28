@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import type { Route } from "./+types/practice-setup";
 import { AppShell } from "~/components/AppShell";
+import { Button } from "~/components/Button";
 import { Segmented } from "~/components/Segmented";
 import { ProviderSetupForm } from "~/components/ProviderSetupForm";
 import { getScenario, type EnglishLevel } from "~/data/scenarios";
+import { isSpeechSupported } from "~/lib/speech";
 import {
 	clearDraft,
 	getSetup,
@@ -14,14 +16,12 @@ import {
 	setSetup,
 	type Setup,
 } from "~/lib/storage";
+import { inputClass } from "~/lib/ui";
 
 export function meta({ params }: Route.MetaArgs) {
 	const scenario = getScenario(params.scenarioId ?? "");
 	return [{ title: scenario ? `${scenario.title} · Practice setup` : "Practice setup · TOLK" }];
 }
-
-const FIELD_INPUT =
-	"w-full rounded-[4px] border border-meta bg-paper px-3.5 py-3 text-base text-ink transition hover:border-ink-2 focus:border-accent focus:shadow-[0_0_0_3px_color-mix(in_oklab,#3e6ae1_30%,transparent)] focus:outline-none";
 
 const DIFFICULTIES: { value: EnglishLevel; label: string }[] = [
 	{ value: "beginner", label: "Beginner" },
@@ -52,7 +52,7 @@ export default function PracticeSetup() {
 	const [duration, setDuration] = useState(nearestDuration(scenario?.durationMin ?? 10));
 	const [mode, setMode] = useState<"voice" | "text">(() => {
 		if (existing?.mode) return existing.mode;
-		return loadPrefs()?.mode ?? "text";
+		return loadPrefs()?.mode ?? (isSpeechSupported() ? "voice" : "text");
 	});
 	const [provider, setProvider] = useState<Setup | null>(existing);
 	const [configured, setConfigured] = useState(Boolean(existing?.apiKey));
@@ -111,7 +111,7 @@ export default function PracticeSetup() {
 					<p className="mt-3 text-muted">Two quick choices and you&rsquo;re in.</p>
 				</div>
 
-				<div className="mt-6 rounded-xl border border-line bg-paper p-6">
+				<div className="mt-6 rounded-lg border border-line bg-paper p-6">
 					<div className="grid gap-5 sm:grid-cols-2">
 						<div className="flex flex-col gap-[7px]">
 							<label htmlFor="your-role" className="text-sm font-semibold text-ink">
@@ -122,7 +122,7 @@ export default function PracticeSetup() {
 								type="text"
 								value={userRole}
 								onChange={(event) => setUserRole(event.target.value)}
-								className={FIELD_INPUT}
+								className={inputClass}
 							/>
 						</div>
 						<div className="flex flex-col gap-[7px]">
@@ -134,7 +134,7 @@ export default function PracticeSetup() {
 								type="text"
 								value={aiRole}
 								onChange={(event) => setAiRole(event.target.value)}
-								className={FIELD_INPUT}
+								className={inputClass}
 							/>
 						</div>
 					</div>
@@ -148,7 +148,7 @@ export default function PracticeSetup() {
 							rows={2}
 							value={goal}
 							onChange={(event) => setGoal(event.target.value)}
-							className={`${FIELD_INPUT} min-h-[72px] resize-y`}
+							className={`${inputClass} min-h-[72px] resize-y`}
 						/>
 					</div>
 
@@ -185,7 +185,7 @@ export default function PracticeSetup() {
 						/>
 						<p className="text-sm text-muted">
 							{mode === "voice"
-								? "Voice capture is on the roadmap. For now, choosing Voice keeps the push-to-talk UI and falls back to typing."
+								? "Speak with the mic in your browser. Choose Text if you prefer typing."
 								: "Type your responses in the conversation."}
 						</p>
 					</div>
@@ -231,14 +231,14 @@ export default function PracticeSetup() {
 						</div>
 					)}
 
-					<button
-						type="button"
+					<Button
 						onClick={start}
 						disabled={!configured}
-						className="mt-6 inline-flex min-h-[44px] w-full items-center justify-center rounded-full bg-accent px-6 py-2.5 text-sm font-semibold text-paper transition hover:bg-accent-dark disabled:pointer-events-none disabled:opacity-40"
+						size="lg"
+						className="mt-6 w-full"
 					>
 						{configured ? "Start Conversation" : "Connect a provider to continue"}
-					</button>
+					</Button>
 					<p className="mt-3 text-center text-sm text-muted">
 						<Link to={`/practice/${scenario.id}`} className="font-semibold text-accent transition hover:text-accent-dark">
 							Skip setup and start directly

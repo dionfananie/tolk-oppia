@@ -1,5 +1,5 @@
-import { Link } from "react-router";
 import type { CategoryId, Scenario } from "~/data/scenarios";
+import { Button } from "~/components/Button";
 import {
 	IconBriefcase,
 	IconChat,
@@ -21,7 +21,7 @@ type Props = {
 export function ScenarioCard({ scenario }: Props) {
 	const Icon = CATEGORY_ICONS[scenario.category];
 	return (
-		<article className="flex flex-col gap-2 rounded-xl border border-line bg-paper p-6 transition hover:-translate-y-0.5 hover:border-line hover:shadow-[0_2px_8px_rgba(0,0,0,0.05)]">
+		<article className="flex flex-col gap-2 rounded-lg border border-line bg-paper p-6 transition-shadow hover:shadow-sm">
 			<span className="mb-2 grid size-10 place-items-center rounded-full bg-surface text-ink-2">
 				<Icon className="size-5" />
 			</span>
@@ -34,7 +34,7 @@ export function ScenarioCard({ scenario }: Props) {
 					{scenario.targetVocabulary.slice(0, 3).map((word) => (
 						<span
 							key={word}
-							className="rounded-full bg-surface px-2.5 py-0.5 text-xs font-semibold text-muted"
+							className="rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium text-muted"
 						>
 							{word}
 						</span>
@@ -42,15 +42,12 @@ export function ScenarioCard({ scenario }: Props) {
 				</div>
 			)}
 			<div className="mt-auto flex items-center justify-between gap-3 pt-4">
-				<span className="text-xs font-semibold text-muted">
+				<span className="text-xs font-medium text-muted">
 					{scenario.difficulty} · {scenario.durationMin} min
 				</span>
-				<Link
-					to={`/practice/${scenario.id}/setup`}
-					className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-paper transition hover:bg-accent-dark"
-				>
+				<Button to={`/practice/${scenario.id}/setup`} size="sm">
 					Practice
-				</Link>
+				</Button>
 			</div>
 		</article>
 	);

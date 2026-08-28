@@ -3,16 +3,13 @@ import { Link } from "react-router";
 import type { Route } from "./+types/dashboard";
 import { AppShell } from "~/components/AppShell";
 import { Badge } from "~/components/Badge";
+import { Button } from "~/components/Button";
+import { EmptyState } from "~/components/EmptyState";
 import { SkillBar } from "~/components/SkillBar";
 import { IconChevronRight } from "~/components/icons";
 import { getScenario, CATEGORIES, type EnglishLevel } from "~/data/scenarios";
 import { getSetup, loadPrefs, getSessions, type Session } from "~/lib/storage";
-import {
-	averageScores,
-	currentStreak,
-	LEVEL_CEFR,
-	recommendScenario,
-} from "~/lib/stats";
+import { averageScores, currentStreak, LEVEL_CEFR, recommendScenario } from "~/lib/stats";
 import { formatDuration, formatRelative } from "~/lib/format";
 
 export function meta({}: Route.MetaArgs) {
@@ -76,9 +73,9 @@ export default function Dashboard() {
 			</div>
 
 			{!configured && (
-				<div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-surface p-4 sm:p-5">
+				<div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-line bg-paper p-4 sm:p-5">
 					<div className="flex items-center gap-3">
-						<span className="size-[6px] flex-none rounded-full bg-accent" />
+						<span className="size-2 flex-none rounded-full bg-accent" />
 						<div>
 							<p className="text-sm font-semibold text-ink">Set up your AI provider</p>
 							<p className="text-sm text-muted">
@@ -86,18 +83,13 @@ export default function Dashboard() {
 							</p>
 						</div>
 					</div>
-					<Link
-						to="/settings"
-						className="inline-flex min-h-[44px] items-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-paper transition hover:bg-accent-dark"
-					>
-						Set up
-					</Link>
+					<Button to="/settings">Set up</Button>
 				</div>
 			)}
 
 			<div className="mt-7 grid gap-6 lg:grid-cols-2">
 				{recommendation ? (
-					<div className="rounded-xl bg-paper p-6 shadow-[0_2px_8px_rgba(0,0,0,0.05)] ring-1 ring-line">
+					<div className="rounded-lg bg-paper p-6 shadow-sm ring-1 ring-line">
 						<div className="flex items-start justify-between gap-3">
 							<p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-muted">
 								{sessions.length > 0 ? "Today's recommendation" : "A good place to start"}
@@ -119,16 +111,13 @@ export default function Dashboard() {
 							<Badge>{recommendation.durationMin} min</Badge>
 							<Badge>{CATEGORIES.find((c) => c.id === recommendation.category)?.label}</Badge>
 						</div>
-						<Link
-							to={`/practice/${recommendation.id}/setup`}
-							className="mt-5 inline-flex min-h-[44px] items-center rounded-full bg-accent px-6 py-2.5 text-sm font-semibold text-paper transition hover:bg-accent-dark"
-						>
-							Practice
-						</Link>
+						<div className="mt-5">
+							<Button to={`/practice/${recommendation.id}/setup`}>Practice</Button>
+						</div>
 					</div>
 				) : null}
 
-				<div className="rounded-xl border border-line bg-paper p-6">
+				<div className="rounded-lg border border-line bg-paper p-6">
 					<p className="mb-4 font-mono text-xs font-semibold uppercase tracking-[0.14em] text-muted">
 						Your skills
 					</p>
@@ -148,7 +137,7 @@ export default function Dashboard() {
 					)}
 					<Link
 						to="/progress"
-						className="mt-4 inline-flex text-sm font-semibold text-accent transition hover:text-accent-dark"
+						className="mt-4 inline-flex min-h-[44px] items-center text-sm font-semibold text-accent transition-colors hover:text-accent-dark"
 					>
 						View full progress
 					</Link>
@@ -160,32 +149,28 @@ export default function Dashboard() {
 					<h2 className="font-display text-[22px] font-semibold tracking-[-0.015em] text-ink">
 						Recent sessions
 					</h2>
-					<Link to="/history" className="text-sm font-semibold text-accent transition hover:text-accent-dark">
+					<Link to="/history" className="text-sm font-semibold text-accent transition-colors hover:text-accent-dark">
 						View history
 					</Link>
 				</div>
 				{recent.length === 0 ? (
-					<div className="rounded-xl border border-dashed border-line bg-paper px-6 py-10 text-center">
-						<p className="text-sm font-semibold text-ink-2">No practice sessions yet.</p>
-						<p className="mx-auto mt-1 max-w-sm text-sm text-muted">
-							Start your first conversation and your results will appear here.
-						</p>
-						<Link
-							to="/practice"
-							className="mt-5 inline-flex min-h-[44px] items-center rounded-full bg-accent px-6 py-2.5 text-sm font-semibold text-paper transition hover:bg-accent-dark"
+					<div className="rounded-lg border border-dashed border-line bg-paper">
+						<EmptyState
+							title="No practice sessions yet."
+							body="Start your first conversation and your results will appear here."
 						>
-							Start practicing
-						</Link>
+							<Button to="/practice">Start practicing</Button>
+						</EmptyState>
 					</div>
 				) : (
-					<div className="overflow-hidden rounded-xl border border-line bg-paper">
+					<div className="overflow-hidden rounded-lg border border-line bg-paper">
 						{recent.map((session) => {
 							const scenario = getScenario(session.scenarioId);
 							return (
 								<Link
 									key={session.id}
 									to={`/results/${session.id}`}
-									className="flex items-center gap-4 px-5 py-4 transition hover:bg-surface-warm"
+									className="flex items-center gap-4 border-b border-line-soft px-5 py-4 transition-colors hover:bg-surface-warm last:border-b-0"
 								>
 									<span className="grid size-8 flex-none place-items-center rounded-full bg-surface text-xs font-semibold text-ink-2">
 										{scenario
@@ -209,7 +194,7 @@ export default function Dashboard() {
 									<span className="font-mono text-sm font-semibold text-accent">
 										{session.score}
 									</span>
-									<IconChevronRight className="size-[18px] text-meta" />
+									<IconChevronRight className="size-[18px] flex-none text-meta" />
 								</Link>
 							);
 						})}

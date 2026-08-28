@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { Route } from "./+types/scenarios";
 import { AppShell } from "~/components/AppShell";
 import { ChipGroup } from "~/components/ChipGroup";
+import { EmptyState } from "~/components/EmptyState";
 import { ScenarioCard } from "~/components/ScenarioCard";
 import {
 	CATEGORIES,
@@ -47,9 +48,11 @@ export default function Scenarios() {
 			</div>
 
 			{scenarios.length === 0 ? (
-				<div className="mt-6 rounded-xl border border-dashed border-line bg-paper px-6 py-12 text-center">
-					<p className="text-sm font-semibold text-ink-2">No scenarios in this category yet.</p>
-					<p className="mt-1 text-sm text-muted">Try another filter to see more options.</p>
+				<div className="mt-6 rounded-lg border border-dashed border-line bg-paper">
+					<EmptyState
+						title="No scenarios in this category yet."
+						body="Try another filter to see more options."
+					/>
 				</div>
 			) : (
 				<div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

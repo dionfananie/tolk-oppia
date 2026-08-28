@@ -10,9 +10,7 @@ export function Switch({ checked, onChange, label, id }: Props) {
 	return (
 		<label
 			htmlFor={inputId}
-			className={`inline-flex min-h-[44px] cursor-pointer items-center gap-2.5 ${
-				label ? "px-2.5" : ""
-			}`}
+			className={`inline-flex items-center gap-2.5 ${label ? "cursor-pointer" : ""}`}
 		>
 			<input
 				id={inputId}
@@ -21,10 +19,8 @@ export function Switch({ checked, onChange, label, id }: Props) {
 				onChange={(event) => onChange(event.target.checked)}
 				className="peer sr-only"
 			/>
-			<span className="relative block h-[28px] w-[48px] flex-none rounded-full bg-line transition peer-checked:bg-accent peer-focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,#3e6ae1_30%,transparent)] after:absolute after:left-[4px] after:top-[4px] after:size-[20px] after:rounded-full after:bg-paper after:shadow-[0_1px_3px_rgba(0,0,0,0.25)] after:transition after:content-[''] peer-checked:after:translate-x-[20px]" />
-			{label && (
-				<span className="text-sm font-semibold text-ink">{label}</span>
-			)}
+			<span className="relative block h-8 w-14 flex-none rounded-full bg-line transition-colors [-webkit-tap-highlight-color:transparent] after:absolute after:inset-y-0 after:start-0 after:m-1 after:size-6 after:rounded-full after:bg-paper after:shadow-sm after:transition-[inset-inline-start] after:content-[''] peer-checked:bg-accent peer-checked:after:start-6 peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-paper" />
+			{label && <span className="text-sm font-medium text-ink">{label}</span>}
 		</label>
 	);
 }

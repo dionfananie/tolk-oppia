@@ -41,6 +41,7 @@ export type Settings = {
 	autoPlay: boolean;
 	promptStyle: "direct" | "encouraging";
 	speechRate: "slow" | "normal" | "fast";
+	voiceUri: string;
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -48,6 +49,7 @@ const DEFAULT_SETTINGS: Settings = {
 	autoPlay: true,
 	promptStyle: "encouraging",
 	speechRate: "normal",
+	voiceUri: "",
 };
 
 let memorySetup: Setup | null = null;
@@ -118,6 +120,7 @@ export function loadSettings(): Settings {
 			autoPlay: typeof parsed.autoPlay === "boolean" ? parsed.autoPlay : DEFAULT_SETTINGS.autoPlay,
 			promptStyle: parsed.promptStyle === "direct" ? "direct" : "encouraging",
 			speechRate: parsed.speechRate ?? DEFAULT_SETTINGS.speechRate,
+			voiceUri: typeof parsed.voiceUri === "string" ? parsed.voiceUri : DEFAULT_SETTINGS.voiceUri,
 		};
 	} catch {
 		return DEFAULT_SETTINGS;

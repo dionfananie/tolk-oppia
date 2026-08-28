@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
 import type { Route } from "./+types/daily-challenge";
 import { AppShell } from "~/components/AppShell";
 import { Badge } from "~/components/Badge";
+import { Button } from "~/components/Button";
 import { IconCheck, IconClock } from "~/components/icons";
 import { SCENARIOS, type Scenario } from "~/data/scenarios";
 import { getSessions, type Session } from "~/lib/storage";
@@ -61,7 +61,7 @@ export default function DailyChallenge() {
 			</div>
 
 			<div className="mt-6 grid gap-4 md:grid-cols-3">
-				<div className="rounded-xl bg-paper p-6 shadow-[0_2px_8px_rgba(0,0,0,0.05)] ring-1 ring-line">
+				<div className="rounded-lg bg-paper p-6 shadow-sm ring-1 ring-line">
 					<p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-muted">
 						Scenario · {scenario.difficulty}
 					</p>
@@ -84,24 +84,15 @@ export default function DailyChallenge() {
 						</p>
 					) : (
 						<div className="mt-5 flex flex-wrap gap-3">
-							<Link
-								to={`/practice/${scenario.id}/setup`}
-								className="inline-flex min-h-[44px] items-center rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-paper transition hover:bg-accent-dark"
-							>
-								Start Challenge
-							</Link>
-							<button
-								type="button"
-								onClick={() => setSkipNote(true)}
-								className="inline-flex min-h-[44px] items-center rounded-full border border-line bg-paper px-5 py-2.5 text-sm font-semibold text-ink transition hover:border-meta"
-							>
+							<Button to={`/practice/${scenario.id}/setup`}>Start Challenge</Button>
+							<Button variant="secondary" onClick={() => setSkipNote(true)}>
 								Skip
-							</button>
+							</Button>
 						</div>
 					)}
 				</div>
 
-				<div className="rounded-xl border border-line bg-paper p-6">
+				<div className="rounded-lg border border-line bg-paper p-6">
 					<p className="font-mono text-[38px] font-semibold text-ink">{streak}</p>
 					<p className="mt-1 text-sm font-semibold text-ink-2">Day streak</p>
 					<p className="mt-1.5 text-sm text-muted">
@@ -116,7 +107,7 @@ export default function DailyChallenge() {
 					</div>
 				</div>
 
-				<div className="rounded-xl border border-line bg-paper p-6">
+				<div className="rounded-lg border border-line bg-paper p-6">
 					<p className="text-base font-semibold text-ink">How it works</p>
 					<ul className="mt-3 flex flex-col gap-2.5">
 						{[

@@ -5,12 +5,18 @@ type Props = {
 
 export function SkillBar({ label, value }: Props) {
 	return (
-		<div className="skill">
-			<div className="mb-2 flex items-baseline justify-between gap-3">
-				<span className="text-sm font-semibold text-ink-2">{label}</span>
-				<span className="font-mono text-sm font-semibold text-ink">{value}</span>
+		<div
+			role="progressbar"
+			aria-valuenow={value}
+			aria-valuemin={0}
+			aria-valuemax={100}
+			aria-label={label}
+		>
+			<div className="flex justify-between gap-4">
+				<span className="text-sm font-medium text-ink">{label}</span>
+				<span className="text-sm font-medium text-ink">{value}</span>
 			</div>
-			<div className="h-2 w-full overflow-hidden rounded-full bg-surface">
+			<div className="mt-2 h-2 w-full rounded-full bg-surface">
 				<div
 					className="h-full rounded-full bg-accent"
 					style={{ width: `${value}%`, transition: "width 0.6s ease" }}

@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from "react-router";
 import type { Route } from "./+types/results";
 import { AppShell } from "~/components/AppShell";
 import { Badge } from "~/components/Badge";
+import { Button } from "~/components/Button";
+import { EmptyState } from "~/components/EmptyState";
 import { SkillBar } from "~/components/SkillBar";
 import { ScoreRing } from "~/components/ScoreRing";
 import { ChatBubble } from "~/components/ChatBubble";
@@ -77,10 +79,7 @@ function ResultsView({
 	const setup = getSetup();
 	const canRetry = Boolean(setup?.apiKey && session.feedback === null);
 	const dimensionRows = session.feedback
-		? (DIMENSION_ORDER.map((d) => ({
-				label: d.label,
-				value: session.feedback!.scores[d.key],
-			})) as { label: string; value: number }[])
+		? DIMENSION_ORDER.map((d) => ({ label: d.label, value: session.feedback!.scores[d.key] }))
 		: [];
 
 	async function retryFeedback() {
@@ -89,11 +88,7 @@ function ResultsView({
 		setError(null);
 		try {
 			const feedback = await generateFeedback(setup, scenario, session.level, session.messages);
-			const updated: Session = {
-				...session,
-				score: overallScore(feedback),
-				feedback,
-			};
+			const updated: Session = { ...session, score: overallScore(feedback), feedback };
 			saveSession(updated);
 			onChange(updated);
 		} catch (cause) {
@@ -125,8 +120,7 @@ function ResultsView({
 			<div className="flex flex-wrap items-end justify-between gap-4">
 				<div>
 					<p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-muted">
-						{formatDateTime(session.endedAt)} ·{" "}
-						{formatDuration(session.startedAt, session.endedAt)}
+						{formatDateTime(session.endedAt)} · {formatDuration(session.startedAt, session.endedAt)}
 					</p>
 					<h1 className="mt-2 font-display text-[clamp(26px,3.2vw,38px)] font-semibold tracking-[-0.015em] text-ink">
 						Your practice results
@@ -136,13 +130,13 @@ function ResultsView({
 					</p>
 				</div>
 				<div className="grid place-items-center">
-					<ScoreRing value={session.score} size={120} strokeWidth={8} label="/100" />
+					<ScoreRing value={session.score} size={120} strokeWidth={10} label="/100" />
 				</div>
 			</div>
 
 			{session.feedback ? (
 				<>
-					<section className="mt-6 rounded-xl border border-line bg-paper p-6">
+					<section className="mt-6 rounded-lg border border-line bg-paper p-6">
 						<p className="mb-5 font-mono text-xs font-semibold uppercase tracking-[0.14em] text-muted">
 							Score overview
 						</p>
@@ -158,7 +152,7 @@ function ResultsView({
 							<h2 className="font-display text-[22px] font-semibold tracking-[-0.015em] text-ink">
 								What you did well
 							</h2>
-							<div className="mt-3 rounded-xl border border-line bg-paper p-5">
+							<div className="mt-3 rounded-lg border border-line bg-paper p-5">
 								<ul className="flex flex-col gap-2.5">
 									{session.feedback.strengths.map((strength, index) => (
 										<li key={index} className="flex items-start gap-2.5 text-sm text-ink-2">
@@ -184,7 +178,7 @@ function ResultsView({
 							</div>
 							<div className="flex flex-col gap-4">
 								{session.feedback.corrections.map((correction, index) => (
-									<div key={index} className="rounded-xl border border-line bg-paper p-5">
+									<div key={index} className="rounded-lg border border-line bg-paper p-5">
 										<p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted">
 											You said
 										</p>
@@ -203,20 +197,13 @@ function ResultsView({
 											</p>
 										)}
 										<div className="mt-4 flex gap-3">
-											<button
-												type="button"
-												onClick={() => speak(correction.correction)}
-												className="inline-flex min-h-[38px] items-center gap-2 rounded-sm border border-line bg-paper px-3.5 py-2 text-[13px] font-semibold text-ink transition hover:border-meta"
-											>
-												<IconReplay className="size-[15px]" />
+											<Button variant="secondary" size="sm" onClick={() => speak(correction.correction)}>
+												<IconReplay className="size-4" />
 												Listen
-											</button>
-											<Link
-												to={`/practice/${session.scenarioId}`}
-												className="inline-flex min-h-[38px] items-center rounded-sm bg-accent px-3.5 py-2 text-[13px] font-semibold text-paper transition hover:bg-accent-dark"
-											>
+											</Button>
+											<Button size="sm" to={`/practice/${session.scenarioId}`}>
 												Practice this
-											</Link>
+											</Button>
 										</div>
 									</div>
 								))}
@@ -229,7 +216,7 @@ function ResultsView({
 							<h2 className="font-display text-[22px] font-semibold tracking-[-0.015em] text-ink">
 								Recommended practice
 							</h2>
-							<div className="mt-3 rounded-xl border border-line bg-paper p-5">
+							<div className="mt-3 rounded-lg border border-line bg-paper p-5">
 								<ol className="flex flex-col gap-3">
 									{session.feedback.recommendations.map((recommendation, index) => (
 										<li key={index} className="flex gap-3 text-sm text-ink-2">
@@ -245,33 +232,21 @@ function ResultsView({
 					)}
 				</>
 			) : (
-				<div className="mt-6 rounded-xl border border-line bg-paper p-8 text-center">
-					<h2 className="font-display text-lg font-semibold text-ink">
-						Feedback wasn&apos;t generated
-					</h2>
-					<p className="mx-auto mt-1 max-w-md text-sm text-muted">
-						Your conversation was saved, but we couldn&apos;t analyze it. If your API key is
-						still active in this session, you can try again.
-					</p>
-					{error && <p className="mt-3 rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
-					<div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+				<div className="mt-6 rounded-lg border border-line bg-paper">
+					<EmptyState
+						title="Feedback wasn't generated"
+						body="Your conversation was saved, but we couldn't analyze it. If your API key is still active in this session, you can try again."
+					>
+						{error && <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
 						{canRetry && (
-							<button
-								type="button"
-								onClick={() => void retryFeedback()}
-								disabled={busy}
-								className="inline-flex min-h-[44px] items-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-paper transition hover:bg-accent-dark disabled:opacity-50"
-							>
+							<Button onClick={() => void retryFeedback()} disabled={busy}>
 								{busy ? "Analyzing…" : "Try again"}
-							</button>
+							</Button>
 						)}
-						<Link
-							to="/practice"
-							className="inline-flex min-h-[44px] items-center rounded-lg border border-line bg-paper px-4 py-2 text-sm font-semibold text-ink transition hover:border-meta"
-						>
+						<Button to="/practice" variant="secondary">
 							Practice another scenario
-						</Link>
-					</div>
+						</Button>
+					</EmptyState>
 				</div>
 			)}
 
@@ -281,33 +256,20 @@ function ResultsView({
 				</h2>
 				<div className="mt-3 flex flex-col gap-3">
 					{session.messages.map((message, index) => (
-						<ChatBubble
-							key={`${message.role}-${index}`}
-							message={message}
-							who={scenario?.aiRole}
-						/>
+						<ChatBubble key={`${message.role}-${index}`} message={message} who={scenario?.aiRole} />
 					))}
 				</div>
 			</section>
 
 			<div className="mt-8 flex flex-wrap items-center gap-3">
-				<button
-					type="button"
-					onClick={practiceAgain}
-					className="inline-flex min-h-[44px] items-center rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-paper transition hover:bg-accent-dark"
-				>
-					Practice this again
-				</button>
-				<Link
-					to="/practice"
-					className="inline-flex min-h-[44px] items-center rounded-lg border border-line bg-paper px-5 py-2.5 text-sm font-semibold text-ink transition hover:border-meta"
-				>
+				<Button onClick={practiceAgain}>Practice this again</Button>
+				<Button to="/practice" variant="secondary">
 					New scenario
-				</Link>
+				</Button>
 				<button
 					type="button"
 					onClick={removeSession}
-					className="ml-auto inline-flex min-h-[44px] items-center px-3 py-2 text-sm font-medium text-muted transition hover:text-danger"
+					className="ml-auto inline-flex min-h-[44px] items-center px-3 py-2 text-sm font-medium text-muted transition-colors hover:text-danger focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-paper focus:outline-none"
 				>
 					Delete session
 				</button>
