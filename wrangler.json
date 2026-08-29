@@ -7,6 +7,13 @@
 	"observability": {
 		"enabled": true
 	},
+	"workers_dev": false,
+	"routes": [
+		{
+			"pattern": "tolk.oppia.world",
+			"custom_domain": true
+		}
+	],
 	"upload_source_maps": true,
 	"vars": {
 		"VALUE_FROM_CLOUDFLARE": "Hello from Cloudflare"
