@@ -8,7 +8,7 @@ import { EmptyState } from "~/components/EmptyState";
 import { SkillBar } from "~/components/SkillBar";
 import { IconChevronRight } from "~/components/icons";
 import { getScenario, CATEGORIES, type EnglishLevel } from "~/data/scenarios";
-import { getSetup, loadPrefs, getSessions, type Session } from "~/lib/storage";
+import { getSetup, loadPrefs, getSessions, setupReady, type Session } from "~/lib/storage";
 import { averageScores, currentStreak, LEVEL_CEFR, recommendScenario } from "~/lib/stats";
 import { formatDuration, formatRelative } from "~/lib/format";
 
@@ -43,7 +43,7 @@ export default function Dashboard() {
 		setSessions(getSessions());
 		const prefs = loadPrefs();
 		if (prefs) setLevel(prefs.level);
-		setConfigured(Boolean(getSetup()?.apiKey));
+		setConfigured(setupReady(getSetup()));
 	}, []);
 
 	const recommendation = recommendScenario(sessions);

@@ -17,6 +17,7 @@ import {
 	getSetup,
 	saveSession,
 	setSetup,
+	setupReady,
 	type Session,
 } from "~/lib/storage";
 import { formatDateTime, formatDuration } from "~/lib/format";
@@ -77,13 +78,13 @@ function ResultsView({
 
 	const scenario = getScenario(session.scenarioId);
 	const setup = getSetup();
-	const canRetry = Boolean(setup?.apiKey && session.feedback === null);
+	const canRetry = Boolean(setupReady(setup) && session.feedback === null);
 	const dimensionRows = session.feedback
 		? DIMENSION_ORDER.map((d) => ({ label: d.label, value: session.feedback!.scores[d.key] }))
 		: [];
 
 	async function retryFeedback() {
-		if (!setup?.apiKey || !scenario || busy) return;
+		if (!setupReady(setup) || !setup || !scenario || busy) return;
 		setBusy(true);
 		setError(null);
 		try {
@@ -104,8 +105,8 @@ function ResultsView({
 			level: session.level,
 			provider: session.provider,
 			model: session.model,
-			...(session.baseUrl ? { baseUrl: session.baseUrl } : {}),
-			apiKey: setup?.apiKey ?? "",
+			...(setup?.serverKey ? { serverKey: true } : {}),
+			...(setup?.apiKey ? { apiKey: setup.apiKey } : {}),
 			mode: setup?.mode ?? "text",
 		});
 		navigate(`/practice/${session.scenarioId}`);

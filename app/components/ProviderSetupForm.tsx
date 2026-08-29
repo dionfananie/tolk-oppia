@@ -1,153 +1,174 @@
 import { useState } from "react";
 import {
 	defaultModel,
-	PROVIDER_DEFAULT_BASE_URLS,
 	PROVIDER_META,
+	getModels,
+	labelForModel,
 	type ProviderName,
 } from "~/lib/providers";
-import type { Setup } from "~/lib/storage";
-import { inputClass } from "~/lib/ui";
+import { inputClass, selectClass } from "~/lib/ui";
+
+export type ProviderFormValue = {
+	provider: ProviderName;
+	model: string;
+	/** OpenRouter key — kosong artinya pakai key yang sudah tersimpan (server Bila login, atau BYOK lokal). */
+	apiKey?: string;
+};
 
 type Props = {
-	initial?: Setup | null;
-	onSave: (setup: Setup) => void;
+	initial?: ProviderFormValue | null;
+	onSave: (value: ProviderFormValue) => void;
 	submitLabel?: string;
 	compact?: boolean;
+	/** true = key tak perlu diisi lagi (sudah tersimpan server-side / lokal). Sembunyikan field key. */
+	hasStoredKey?: boolean;
 };
+
+function sortedModels(provider: ProviderName) {
+	return getModels(provider);
+}
 
 export function ProviderSetupForm({
 	initial,
 	onSave,
-	submitLabel = "Save & Connect",
+	submitLabel = "Save",
 	compact = false,
+	hasStoredKey = false,
 }: Props) {
-	const [provider, setProvider] = useState<ProviderName>(initial?.provider ?? "deepseek");
+	const [provider, setProvider] = useState<ProviderName>(
+		initial?.provider ?? "deepseek",
+	);
 	const [model, setModel] = useState<string>(
 		initial?.model || defaultModel(initial?.provider ?? "deepseek"),
 	);
-	const [baseUrl, setBaseUrl] = useState<string>(initial?.baseUrl ?? "");
+	const [customModel, setCustomModel] = useState(
+		initial && !getModels(initial.provider).some((m) => m.id === initial.model) ? initial.model : "",
+	);
+	const [useCustom, setUseCustom] = useState(Boolean(customModel));
 	const [apiKey, setApiKey] = useState(initial?.apiKey ?? "");
 	const [error, setError] = useState<string | null>(null);
 
 	function changeProvider(next: ProviderName) {
 		setProvider(next);
-		setModel(defaultModel(next));
+		const def = defaultModel(next);
+		setModel(def);
+		setUseCustom(false);
+		setCustomModel("");
 	}
+
+	function selectModel(id: string) {
+		if (id === "__custom__") {
+			setUseCustom(true);
+			setModel("");
+		} else {
+			setUseCustom(false);
+			setCustomModel("");
+			setModel(id);
+		}
+	}
+
+	const finalModel = useCustom ? customModel.trim() : model;
 
 	function submit(event: React.FormEvent) {
 		event.preventDefault();
-		if (!apiKey.trim()) {
-			setError("Enter your API key to continue.");
+		if (!finalModel) {
+			setError("Pilih atau tulis nama model.");
+			return;
+		}
+		if (!hasStoredKey && !apiKey.trim()) {
+			setError("Masukkan key OpenRouter untuk menyambung (atau login dulu untuk pakai key tersimpan).");
 			return;
 		}
 		setError(null);
 		onSave({
 			provider,
-			model: model.trim() || defaultModel(provider),
-			apiKey: apiKey.trim(),
-			...(baseUrl.trim() ? { baseUrl: baseUrl.trim() } : {}),
-			level: initial?.level ?? "intermediate",
+			model: finalModel,
+			...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
 		});
 	}
 
 	return (
-		<form onSubmit={submit} className="space-y-5">
-			<div>
-				<p className="mb-2 text-sm font-medium text-ink">Provider</p>
-				<div className={`grid gap-3 ${compact ? "sm:grid-cols-1" : "sm:grid-cols-2"}`}>
-					{PROVIDER_META.map((meta) => {
-						const active = provider === meta.provider;
-						return (
-							<button
-								key={meta.provider}
-								type="button"
-								onClick={() => changeProvider(meta.provider)}
-								aria-pressed={active}
-								className={`rounded-lg border p-4 text-left transition-colors focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-paper focus:outline-none ${
-									active
-										? "border-accent bg-accent/5"
-										: "border-line bg-paper hover:border-meta hover:bg-surface"
-								}`}
-							>
-								<p className="flex items-center gap-2 text-sm font-semibold text-ink">
-									<span
-										className={`size-4 rounded-full border-2 transition-colors ${
-											active ? "border-[5px] border-accent" : "border-line"
-										}`}
-									/>
-									{meta.label}
-								</p>
-								<p className="mt-1.5 text-xs leading-relaxed text-muted">
-									{meta.description}
-								</p>
-							</button>
-						);
-					})}
-				</div>
+		<form onSubmit={submit} className="space-y-4">
+			<div className="flex flex-col gap-[7px]">
+				<label htmlFor="pv-provider" className="text-sm font-medium text-ink">
+					Provider
+				</label>
+				<select
+					id="pv-provider"
+					value={provider}
+					onChange={(e) => changeProvider(e.target.value as ProviderName)}
+					className={selectClass}
+				>
+					{PROVIDER_META.map((meta) => (
+						<option key={meta.provider} value={meta.provider}>
+							{meta.label}
+						</option>
+					))}
+				</select>
+				<p className="text-sm text-muted">
+					{PROVIDER_META.find((p) => p.provider === provider)?.description}
+				</p>
 			</div>
 
 			<div className="flex flex-col gap-[7px]">
-				<label htmlFor="model" className="text-sm font-medium text-ink">
+				<label htmlFor="pv-model" className="text-sm font-medium text-ink">
 					Model
 				</label>
-				<input
-					id="model"
-					type="text"
-					autoComplete="off"
-					spellCheck={false}
-					value={model}
-					onChange={(event) => setModel(event.target.value)}
-					placeholder={defaultModel(provider)}
-					list="model-suggestions"
-					className={inputClass}
-				/>
-				<datalist id="model-suggestions">
-					{PROVIDER_META.flatMap((p) => p.models.map((m) => m.id)).map((id) => (
-						<option key={id} value={id} />
-					))}
-				</datalist>
+				{useCustom ? (
+					<input
+						id="pv-model"
+						type="text"
+						autoComplete="off"
+						spellCheck={false}
+						value={customModel}
+						onChange={(e) => setCustomModel(e.target.value)}
+						placeholder="model vendor/nama (cth: deepseek/deepseek-v4-flash)"
+						className={inputClass}
+					/>
+				) : (
+					<select
+						id="pv-model"
+						value={finalModel}
+						onChange={(e) => selectModel(e.target.value)}
+						className={selectClass}
+					>
+						<option value="" disabled>
+							Pilih model
+						</option>
+						{sortedModels(provider).map((m) => (
+							<option key={m.id} value={m.id}>
+								{labelForModel(m.id) || m.label}
+							</option>
+						))}
+						<option value="__custom__">Tulis model custom…</option>
+					</select>
+				)}
 				<p className="text-sm text-muted">
-					Any model your provider supports, e.g. gpt-4o-mini, llama-3.3-70b, glm-4-plus.
+					Model via OpenRouter. Pilih preset atau tulis id custom.
 				</p>
 			</div>
 
-			<div className="flex flex-col gap-[7px]">
-				<label htmlFor="base-url" className="text-sm font-medium text-ink">
-					Base URL <span className="text-muted">(optional)</span>
-				</label>
-				<input
-					id="base-url"
-					type="text"
-					autoComplete="off"
-					spellCheck={false}
-					value={baseUrl}
-					onChange={(event) => setBaseUrl(event.target.value)}
-					placeholder={PROVIDER_DEFAULT_BASE_URLS[provider]}
-					className={`${inputClass} font-mono`}
-				/>
-				<p className="text-sm text-muted">
-					Leave empty for this provider's default, or set a custom OpenAI-compatible base URL.
-				</p>
-			</div>
-
-			<div className="flex flex-col gap-[7px]">
-				<label htmlFor="api-key" className="text-sm font-medium text-ink">
-					API key
-				</label>
-				<input
-					id="api-key"
-					type="password"
-					autoComplete="off"
-					spellCheck={false}
-					value={apiKey}
-					onChange={(event) => setApiKey(event.target.value)}
-					placeholder={`Paste your ${provider} API key`}
-					className={inputClass}
-				/>
-				<p className="text-sm text-muted">
-					Your key is used only for AI requests from this browser and is never stored.
-				</p>
-			</div>
+			{!hasStoredKey && (
+				<div className="flex flex-col gap-[7px]">
+					<label htmlFor="pv-key" className="text-sm font-medium text-ink">
+						API key <span className="text-muted">(OpenRouter)</span>
+					</label>
+					<input
+						id="pv-key"
+						type="password"
+						autoComplete="off"
+						spellCheck={false}
+						value={apiKey}
+						onChange={(e) => setApiKey(e.target.value)}
+						placeholder="sk-or-v1-…"
+						className={inputClass}
+					/>
+					<p className="text-sm text-muted">
+						Login untuk simpan key di server (tanpa perlu input ulang). Tanpa login, key
+						disimpan di browser (BYOK lokal).
+					</p>
+				</div>
+			)}
 
 			{error && <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
 
@@ -157,6 +178,7 @@ export function ProviderSetupForm({
 			>
 				{submitLabel}
 			</button>
+			{compact && <p className="sr-only">{submitLabel}</p>}
 		</form>
 	);
 }

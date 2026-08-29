@@ -4,7 +4,8 @@ import type { Route } from "./+types/practice-setup";
 import { AppShell } from "~/components/AppShell";
 import { Button } from "~/components/Button";
 import { Segmented } from "~/components/Segmented";
-import { ProviderSetupForm } from "~/components/ProviderSetupForm";
+import { ProviderSetupForm, type ProviderFormValue } from "~/components/ProviderSetupForm";
+import { saveServerSetup, useAuth } from "~/lib/auth";
 import { getScenario, type EnglishLevel } from "~/data/scenarios";
 import { isSpeechSupported } from "~/lib/speech";
 import {
@@ -13,7 +14,9 @@ import {
 	loadDraft,
 	loadPrefs,
 	saveDraft,
+	saveLocalApiKey,
 	setSetup,
+	setupReady,
 	type Setup,
 } from "~/lib/storage";
 import { inputClass } from "~/lib/ui";
@@ -43,6 +46,7 @@ export default function PracticeSetup() {
 	const scenario = scenarioId ? getScenario(scenarioId) : undefined;
 
 	const existing = getSetup();
+	const { user } = useAuth();
 	const [userRole, setUserRole] = useState(scenario?.userRole ?? "");
 	const [aiRole, setAiRole] = useState(scenario?.aiRole ?? "");
 	const [goal, setGoal] = useState(scenario?.objective ?? "");
@@ -55,7 +59,7 @@ export default function PracticeSetup() {
 		return loadPrefs()?.mode ?? (isSpeechSupported() ? "voice" : "text");
 	});
 	const [provider, setProvider] = useState<Setup | null>(existing);
-	const [configured, setConfigured] = useState(Boolean(existing?.apiKey));
+	const [configured, setConfigured] = useState(setupReady(existing));
 
 	useEffect(() => {
 		if (!scenario) navigate("/practice", { replace: true });
@@ -78,13 +82,13 @@ export default function PracticeSetup() {
 	function start() {
 		if (!scenario) return;
 		const base = provider ?? existing;
-		if (!base?.apiKey) return;
+		if (!setupReady(base) || !base) return;
 		const setup: Setup = {
 			level: difficulty,
 			provider: base.provider,
 			model: base.model,
-			...(base.baseUrl ? { baseUrl: base.baseUrl } : {}),
-			apiKey: base.apiKey,
+			...(base.apiKey ? { apiKey: base.apiKey } : {}),
+			...(base.serverKey ? { serverKey: base.serverKey } : {}),
 			mode,
 		};
 		setSetup(setup);
@@ -216,15 +220,43 @@ export default function PracticeSetup() {
 						<div className="mt-6 border-t border-line-soft pt-6">
 							<p className="text-sm font-semibold text-ink">Connect your AI provider</p>
 							<p className="mt-1 text-sm text-muted">
-								Add your DeepSeek or GLM API key to start the conversation. The key stays in
-								this browser session.
+								Pilih provider & model (OpenRouter). Login untuk pakai key tersimpan di
+								server; tanpa login, masukkan key OpenRouter yang disimpan di browser ini.
 							</p>
 							<div className="mt-4">
 								<ProviderSetupForm
 									compact
-									initial={provider}
-									onSave={(setup) => {
-										setProvider(setup);
+									initial={
+										provider
+											? {
+													provider: provider.provider,
+													model: provider.model,
+													...(provider.apiKey ? { apiKey: provider.apiKey } : {}),
+												}
+											: null
+									}
+									hasStoredKey={Boolean(user && provider?.serverKey)}
+									onSave={(value) => {
+										// Simpan key sesuai mode, lalu bangun Setup siap pakai.
+										if (user) {
+											void saveServerSetup({ provider: value.provider, model: value.model, apiKey: value.apiKey });
+											setProvider((prev) => ({
+												level: prev?.level ?? difficulty,
+												provider: value.provider,
+												model: value.model,
+												serverKey: true,
+												mode: prev?.mode ?? mode,
+											}));
+										} else {
+											if (value.apiKey) saveLocalApiKey(value.apiKey);
+											setProvider((prev) => ({
+												level: prev?.level ?? difficulty,
+												provider: value.provider,
+												model: value.model,
+												...(value.apiKey ? { apiKey: value.apiKey } : {}),
+												mode: prev?.mode ?? mode,
+											}));
+										}
 										setConfigured(true);
 									}}
 								/>

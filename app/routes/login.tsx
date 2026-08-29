@@ -1,77 +1,66 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
 import type { Route } from "./+types/login";
 import { AuthShell } from "~/components/AuthShell";
 import { Button } from "~/components/Button";
-import { Switch } from "~/components/Switch";
-import { inputClass } from "~/lib/ui";
+import { googleLoginUrl } from "~/lib/auth";
 
 export function meta({}: Route.MetaArgs) {
 	return [{ title: "Sign in · TOLK" }];
 }
 
 export default function Login() {
-	const navigate = useNavigate();
-	const [email, setEmail] = useState("");
-	const [remember, setRemember] = useState(true);
-	const [error, setError] = useState<string | null>(null);
-
-	function submit(event: React.FormEvent) {
-		event.preventDefault();
-		if (!email.trim() || !email.includes("@")) {
-			setError("Enter a valid email address to continue.");
-			return;
-		}
-		setError(null);
-		navigate("/app");
-	}
+	const returnTo = typeof window !== "undefined"
+		? window.location.pathname + window.location.search
+		: "/app";
 
 	return (
 		<AuthShell
 			title="Welcome back"
-			sub="Pick up where you left off."
+			sub="Sign in to use your saved AI key on any device."
 			asideHref="/signup"
 			asideLabel="Create account"
 			altText="New here?"
 			altHref="/signup"
 			altLink="Create an account"
 		>
-			<form onSubmit={submit} className="mt-6 flex flex-col gap-4">
-				<div className="flex flex-col gap-[7px]">
-					<label htmlFor="login-email" className="text-sm font-medium text-ink">
-						Email
-					</label>
-					<input
-						id="login-email"
-						type="email"
-						autoComplete="email"
-						placeholder="you@company.com"
-						value={email}
-						onChange={(event) => setEmail(event.target.value)}
-						className={inputClass}
-					/>
+			<div className="mt-6 flex flex-col gap-3">
+				<a
+					href={googleLoginUrl(returnTo)}
+					className="inline-flex min-h-[48px] w-full items-center justify-center gap-3 rounded-lg border border-line bg-paper px-4 py-3 text-base font-semibold text-ink transition-colors hover:bg-surface focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-paper focus:outline-none"
+				>
+					<svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
+						<path
+							fill="#4285F4"
+							d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z"
+						/>
+						<path
+							fill="#34A853"
+							d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"
+						/>
+						<path
+							fill="#FBBC05"
+							d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z"
+						/>
+						<path
+							fill="#EA4335"
+							d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A10.97 10.97 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z"
+						/>
+					</svg>
+					Continue with Google
+				</a>
+
+				<div className="flex items-center gap-3 py-1">
+					<div className="h-px flex-1 bg-line-soft" />
+					<span className="text-xs font-medium uppercase tracking-wide text-meta">or</span>
+					<div className="h-px flex-1 bg-line-soft" />
 				</div>
-				<div className="flex flex-col gap-[7px]">
-					<label htmlFor="login-password" className="text-sm font-medium text-ink">
-						Password
-					</label>
-					<input
-						id="login-password"
-						type="password"
-						autoComplete="current-password"
-						placeholder="Your password"
-						className={inputClass}
-					/>
-				</div>
-				<Switch checked={remember} onChange={setRemember} label="Remember me" id="login-remember" />
-				{error && <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
-				<Button type="submit" size="lg">
-					Continue
+
+				<Button to="/app" variant="secondary" size="lg">
+					Continue as guest
 				</Button>
-			</form>
+			</div>
 			<p className="mt-5 rounded-md bg-surface px-3 py-2.5 text-sm leading-relaxed text-muted">
-				TOLK has no server account system yet. Everything runs in this browser, so continuing
-				simply opens the app.
+				Tanpa login, key OpenRouter tersimpan hanya di perangkat ini. Login untuk menyimpan key
+				di server dan memakainya di semua perangkat.
 			</p>
 		</AuthShell>
 	);

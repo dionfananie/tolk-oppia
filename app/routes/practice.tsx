@@ -14,6 +14,7 @@ import {
 	saveSession,
 	setSetup,
 	setupFromPrefs,
+	setupReady,
 	type Session,
 	type SessionDraft,
 	type Setup,
@@ -157,7 +158,7 @@ export default function Practice() {
 	);
 
 	useEffect(() => {
-		if (setup?.apiKey && messages.length === 0 && !openedRef.current && !busy) {
+		if (setup && setupReady(setup) && messages.length === 0 && !openedRef.current && !busy) {
 			void begin(setup);
 		}
 	}, [setup, messages, begin, busy]);
@@ -191,7 +192,7 @@ export default function Practice() {
 
 	async function send(textOverride?: string) {
 		const text = (textOverride ?? input).trim();
-		if (!text || !setup?.apiKey || !scenario || !effectiveScenario || busyRef.current) return;
+		if (!text || !setupReady(setup) || !setup || !scenario || !effectiveScenario || busyRef.current) return;
 		const history: ChatMessage[] = [...messages, { role: "user", content: text }];
 		setMessages(history);
 		setInput("");
@@ -289,7 +290,6 @@ export default function Practice() {
 			level: setup.level,
 			provider: setup.provider,
 			model: setup.model,
-			...(setup.baseUrl ? { baseUrl: setup.baseUrl } : {}),
 			startedAt: startedAtRef.current ?? endedAt,
 			endedAt,
 			messages,
