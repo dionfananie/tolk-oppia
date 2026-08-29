@@ -41,6 +41,13 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 	return <h2 className="font-display text-[22px] font-semibold tracking-[-0.015em] text-ink">{children}</h2>;
 }
 
+/** Return-ke path saat ini utk link Google login — aman utk SSR (tanpa window). */
+function currentReturnTo(): string {
+	return typeof window !== "undefined"
+		? window.location.pathname + window.location.search
+		: "/settings";
+}
+
 export default function Settings() {
 	const navigate = useNavigate();
 	const { user, loading: authLoading, refresh: refreshAuth } = useAuth();
@@ -59,6 +66,7 @@ export default function Settings() {
 		voiceUri: "",
 	});
 	const [hydrated, setHydrated] = useState(false);
+	const [editingKey, setEditingKey] = useState(false);
 
 	useEffect(() => {
 		const prefs = loadPrefs();
@@ -138,8 +146,9 @@ export default function Settings() {
 			setSetup(next);
 			setProvider(next);
 			setConnected(true);
+			setEditingKey(false);
 			setStatus(`Tersimpan di akun — key tak perlu diisi lagi. Model: ${value.model}.`);
-		} else {
+			} else {
 			// BYOK lokal
 			if (!value.apiKey) {
 				setStatus("Login atau isi key OpenRouter untuk menyambung.");
@@ -194,8 +203,17 @@ export default function Settings() {
 		navigate("/");
 	}
 
+	async function handleClearKey() {
+		if (user) await clearServerSetup();
+		saveLocalApiKey("");
+		setConnected(false);
+		setEditingKey(true);
+		setStatus("Key dihapus. Masukkan key OpenRouter baru untuk menyambung.");
+	}
+
 	const activeProviderLabel = provider ? providerLabel(provider.provider) : "—";
-	const hasStoredKey = Boolean(user && provider?.serverKey);
+	// Saat editingKey aktif, tampilkan field key lagi biar bisa ganti/hapus key.
+	const hasStoredKey = Boolean(user && provider?.serverKey && !editingKey);
 
 	return (
 		<AppShell active="settings">
@@ -257,13 +275,25 @@ export default function Settings() {
 						onSave={(value) => void applyProviderValue(value)}
 					/>
 					{hasStoredKey && (
-						<button
-							type="button"
-							onClick={() => setStatus("Mode ganti key: isi ulang key di form server ini.")}
-							className="mt-2 text-sm font-semibold text-accent transition hover:text-accent-dark"
-						>
-							Ganti key…
-						</button>
+						<div className="mt-3 flex flex-wrap items-center gap-3">
+							<button
+								type="button"
+								onClick={() => {
+									setEditingKey(true);
+									setStatus("Masukkan key OpenRouter baru, lalu simpan.");
+								}}
+								className="text-sm font-semibold text-accent transition hover:text-accent-dark"
+							>
+								Ganti key…
+							</button>
+							<button
+								type="button"
+								onClick={handleClearKey}
+								className="text-sm font-semibold text-danger transition hover:opacity-80"
+							>
+								Hapus key
+							</button>
+						</div>
 					)}
 
 					{status && <p className="mt-3 rounded-md bg-surface px-3 py-2 text-sm text-ink-2">{status}</p>}
@@ -285,7 +315,7 @@ export default function Settings() {
 							tanpa perlu input ulang di perangkat lain.
 						</p>
 						<Button
-							to={googleLoginUrl(window.location.pathname + window.location.search)}
+							to={googleLoginUrl(currentReturnTo())}
 							variant="secondary"
 							className="mt-4"
 						>
@@ -436,7 +466,7 @@ export default function Settings() {
 						</button>
 					) : (
 						<Button
-							to={googleLoginUrl(window.location.pathname + window.location.search)}
+							to={googleLoginUrl(currentReturnTo())}
 							className="m-4 w-full"
 						>
 							Continue with Google
