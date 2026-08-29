@@ -16,7 +16,7 @@ type Props = {
 
 export function StatCard({ label, value, delta, note, icon }: Props) {
 	return (
-		<article className="card card-border bg-base-100">
+		<article className="card card-border bg-base-100 dark:bg-base-200 dark:border-base-300 hover:shadow-lg">
 			<div className="card-body p-6">
 				<div className="flex items-start justify-between gap-3">
 					{icon && (

@@ -21,7 +21,7 @@ type Props = {
 export function ScenarioCard({ scenario }: Props) {
 	const Icon = CATEGORY_ICONS[scenario.category];
 	return (
-		<article className="card card-border bg-base-100 transition-transform hover:-translate-y-1">
+		<article className="card card-border bg-base-100 dark:bg-base-200 dark:border-base-300 transition-shadow hover:shadow-lg">
 			<div className="card-body gap-2">
 				<span className="mb-2 grid size-10 place-items-center rounded-lg bg-primary/10 text-primary">
 					<Icon className="size-5" />
