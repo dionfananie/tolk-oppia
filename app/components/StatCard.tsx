@@ -20,7 +20,7 @@ export function StatCard({ label, value, delta, note, icon }: Props) {
 			<div className="card-body p-6">
 				<div className="flex items-start justify-between gap-3">
 					{icon && (
-						<span className="rounded-full bg-primary/10 p-2 text-primary">{icon}</span>
+						<span className="grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">{icon}</span>
 					)}
 					{delta && (
 						<span

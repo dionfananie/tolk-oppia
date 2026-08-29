@@ -23,10 +23,10 @@ export function ScenarioCard({ scenario }: Props) {
 	return (
 		<article className="card card-border bg-base-100 transition-transform hover:-translate-y-1">
 			<div className="card-body gap-2">
-				<span className="mb-2 grid size-10 place-items-center rounded-full bg-primary/15 text-primary">
+				<span className="mb-2 grid size-10 place-items-center rounded-lg bg-primary/10 text-primary">
 					<Icon className="size-5" />
 				</span>
-				<h3 className="card-title text-primary">{scenario.title}</h3>
+				<h3 className="card-title">{scenario.title}</h3>
 				<p className="text-sm leading-[1.45] text-base-content/70">
 					<span className="font-medium text-base-content">{scenario.aiRole}</span> · {scenario.objective}
 				</p>

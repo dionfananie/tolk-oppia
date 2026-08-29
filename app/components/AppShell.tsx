@@ -38,7 +38,7 @@ export function AppShell({ active, children }: Props) {
 									key={item.key}
 									to={item.to}
 									aria-current={current ? "page" : undefined}
-									className={`rounded-full px-3.5 py-2 text-sm font-semibold transition-colors ${
+									className={`rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors ${
 										current
 											? "bg-primary/15 text-primary"
 											: "text-base-content/70 hover:bg-base-200 hover:text-base-content"

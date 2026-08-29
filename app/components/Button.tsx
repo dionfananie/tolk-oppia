@@ -5,7 +5,7 @@ type Variant = "primary" | "secondary" | "ghost";
 type Size = "sm" | "md" | "lg";
 
 const BASE =
-	"btn inline-flex items-center justify-center gap-2 font-semibold focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 focus:ring-offset-base-100 focus:outline-none";
+	"btn inline-flex items-center justify-center gap-2 focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 focus:ring-offset-base-100 focus:outline-none";
 
 const VARIANTS: Record<Variant, string> = {
 	primary: "btn-primary",

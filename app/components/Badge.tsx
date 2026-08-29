@@ -18,9 +18,7 @@ type Props = {
 export function Badge({ children, dot }: Props) {
 	return (
 		<span
-			className={`badge badge-soft ${
-				dot ? "badge-soft text-base-content" : "badge-soft text-base-content/70"
-			}`}
+			className={`badge badge-soft gap-1.5 ${dot ? "text-base-content" : "text-base-content/70"}`}
 		>
 			{dot && <span className={`size-[6px] rounded-full ${DOT_TONES[dot]}`} />}
 			{children}
