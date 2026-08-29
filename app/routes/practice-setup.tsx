@@ -198,24 +198,6 @@ export default function PracticeSetup() {
 					</div>
 
 					<div className="mt-5 flex flex-col gap-2">
-						<p className="text-sm font-semibold text-ink">Speech</p>
-						<Segmented
-							label="Speech mode"
-							value={mode}
-							onChange={(value) => setMode(value as "voice" | "text")}
-							options={[
-								{ value: "voice", label: "Voice" },
-								{ value: "text", label: "Text" },
-							]}
-						/>
-						<p className="text-sm text-muted">
-							{mode === "voice"
-								? "Speak with the mic in your browser. Choose Text if you prefer typing."
-								: "Type your responses in the conversation."}
-						</p>
-					</div>
-
-					<div className="mt-5 flex flex-col gap-2">
 						<p className="text-sm font-semibold text-ink">Target vocabulary</p>
 						<div className="flex flex-wrap gap-2">
 							{scenario.targetVocabulary.length > 0 ? (

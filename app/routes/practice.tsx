@@ -442,62 +442,24 @@ export default function Practice() {
 						)}
 
 						<footer className="flex flex-none flex-col gap-3 py-4">
-							<div className="flex justify-center">
-								<Segmented
-									label="Input mode"
-									value={mode}
-									onChange={(value) => changeMode(value as "voice" | "text")}
-									options={[
-										{ value: "voice", label: "Voice" },
-										{ value: "text", label: "Text" },
-									]}
-								/>
-							</div>
-
-							{mode === "voice" && !voiceSupported && (
+							{!voiceSupported && (
 								<p className="rounded-md bg-surface px-3 py-2 text-center text-sm text-muted">
-									Voice needs Chrome, Edge, or Safari. Type to continue.
+									Voice needs Chrome, Edge, or Safari. Microphone tak tersedia — periksa izin
+									mikrofon atau gunakan browser yang mendukung speech.
 								</p>
 							)}
 
-							{useVoice && (
-								<button
-									type="button"
-									onClick={toggleClickToSpeak}
-									disabled={busy}
-									aria-label="Click to speak"
-									className={`inline-flex min-h-[56px] w-full items-center justify-center gap-2.5 rounded-lg px-6 py-3.5 text-base font-semibold text-paper transition-colors focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-paper focus:outline-none disabled:pointer-events-none disabled:opacity-40 ${listening ? "animate-mic-listen bg-accent-dark" : "bg-accent hover:bg-accent-dark"
-										}`}
-								>
-									<IconMic className="size-6" />
-									{listening ? "Listening… tap to stop" : "Click to Speak"}
-								</button>
-							)}
-
-							<form
-								className="flex flex-none items-center gap-3"
-								onSubmit={(event) => {
-									event.preventDefault();
-									void send();
-								}}
+							<button
+								type="button"
+								onClick={toggleClickToSpeak}
+								disabled={busy || !voiceSupported}
+								aria-label="Click to speak"
+								className={`inline-flex min-h-[56px] w-full items-center justify-center gap-2.5 rounded-lg px-6 py-3.5 text-base font-semibold text-paper transition-colors focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-paper focus:outline-none disabled:pointer-events-none disabled:opacity-40 ${listening ? "animate-mic-listen bg-accent-dark" : "bg-accent hover:bg-accent-dark"
+									}`}
 							>
-								<input
-									ref={inputRef}
-									value={input}
-									onChange={(event) => setInput(event.target.value)}
-									placeholder={busy ? "Coach is responding…" : "Type your response…"}
-									aria-label="Type your response"
-									className="min-h-[48px] min-w-0 flex-1 rounded-lg border border-line bg-paper px-3.5 py-3 text-base text-ink placeholder:text-meta transition-colors hover:border-meta focus:border-accent focus:ring-2 focus:ring-accent/40 focus:outline-none"
-								/>
-								<button
-									type="submit"
-									disabled={busy || !input.trim()}
-									aria-label="Send"
-									className="grid size-[48px] flex-none place-items-center rounded-lg bg-accent text-paper transition-colors hover:bg-accent-dark active:scale-95 disabled:pointer-events-none disabled:opacity-40 focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-paper focus:outline-none"
-								>
-									<IconSend />
-								</button>
-							</form>
+								<IconMic className="size-6" />
+								{listening ? "Listening… tap to stop" : "Click to Speak"}
+							</button>
 						</footer>
 					</div>
 				</div>
