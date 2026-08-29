@@ -104,6 +104,7 @@ function ResultsView({
 			level: session.level,
 			provider: session.provider,
 			model: session.model,
+			...(session.baseUrl ? { baseUrl: session.baseUrl } : {}),
 			apiKey: setup?.apiKey ?? "",
 			mode: setup?.mode ?? "text",
 		});

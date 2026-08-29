@@ -7,7 +7,13 @@ import { Button } from "~/components/Button";
 import { Segmented } from "~/components/Segmented";
 import { Switch } from "~/components/Switch";
 import { ThemeToggle } from "~/components/ThemeToggle";
-import { chat, defaultModel, PROVIDER_META, type ProviderName } from "~/lib/providers";
+import {
+	chat,
+	defaultModel,
+	PROVIDER_DEFAULT_BASE_URLS,
+	PROVIDER_META,
+	type ProviderName,
+} from "~/lib/providers";
 import {
 	getSetup,
 	loadPrefs,
@@ -33,6 +39,8 @@ export default function Settings() {
 	const navigate = useNavigate();
 	const [provider, setProvider] = useState<ProviderName>("deepseek");
 	const [apiKey, setApiKey] = useState("");
+	const [model, setModel] = useState<string>(() => defaultModel("deepseek"));
+	const [baseUrl, setBaseUrl] = useState<string>("");
 	const [level, setLevel] = useState<EnglishLevel>("intermediate");
 	const [connected, setConnected] = useState(false);
 	const [status, setStatus] = useState<string | null>(null);
@@ -55,9 +63,13 @@ export default function Settings() {
 		if (current) {
 			setProvider(current.provider);
 			setApiKey(current.apiKey);
+			setModel(current.model || defaultModel(current.provider));
+			setBaseUrl(current.baseUrl ?? "");
 			setConnected(Boolean(current.apiKey));
 		} else if (prefs) {
 			setProvider(prefs.provider);
+			setModel(prefs.model || defaultModel(prefs.provider));
+			setBaseUrl(prefs.baseUrl ?? "");
 		}
 		setSettings(loadSettings());
 		setHydrated(true);
@@ -84,12 +96,17 @@ export default function Settings() {
 	}
 
 	async function testConnection() {
-		if (!apiKey.trim() || busy) return;
+		if (!apiKey.trim() || !model.trim() || busy) return;
 		setBusy(true);
 		setStatus("Testing connection…");
 		try {
 			await chat(
-				{ provider, apiKey: apiKey.trim(), model: defaultModel(provider) },
+				{
+					provider,
+					apiKey,
+					model: model.trim(),
+					...(baseUrl.trim() ? { baseUrl: baseUrl.trim() } : {}),
+				},
 				[{ role: "user", content: "ping" }],
 				{ maxTokens: 1 },
 			);
@@ -106,13 +123,16 @@ export default function Settings() {
 			setStatus("Enter an API key to connect.");
 			return;
 		}
+		const finalModel = model.trim() || defaultModel(provider);
 		setSetup({
 			level,
 			provider,
-			model: defaultModel(provider),
-			apiKey: apiKey.trim(),
+			model: finalModel,
+			apiKey,
+			...(baseUrl.trim() ? { baseUrl: baseUrl.trim() } : {}),
 			mode: loadPrefs()?.mode ?? "text",
 		});
+		setModel(finalModel);
 		setConnected(true);
 		setStatus(`Connected to ${PROVIDER_META.find((p) => p.provider === provider)?.label}.`);
 	}
@@ -160,11 +180,58 @@ export default function Settings() {
 						label="Provider"
 						value={provider}
 						onChange={(value) => {
-							setProvider(value as ProviderName);
+							const next = value as ProviderName;
+							setProvider(next);
+							setModel(defaultModel(next));
 							setStatus("Not saved yet");
 						}}
 						options={PROVIDER_META.map((p) => ({ value: p.provider, label: p.label.split(" ")[0] }))}
 					/>
+
+					<div className="mt-4 flex flex-col gap-[7px]">
+						<label htmlFor="model" className="text-sm font-medium text-ink">
+							Model
+						</label>
+						<input
+							id="model"
+							type="text"
+							autoComplete="off"
+							spellCheck={false}
+							value={model}
+							onChange={(event) => setModel(event.target.value)}
+							placeholder={defaultModel(provider)}
+							list="model-suggestions"
+							className={inputClass}
+						/>
+						<datalist id="model-suggestions">
+							{PROVIDER_META.flatMap((p) => p.models.map((m) => m.id)).map((id) => (
+								<option key={id} value={id} />
+							))}
+						</datalist>
+						<p className="text-sm text-muted">
+							Enter any model name your provider supports (e.g. gpt-4o-mini, llama-3.3-70b).
+						</p>
+					</div>
+
+					<div className="mt-4 flex flex-col gap-[7px]">
+						<label htmlFor="base-url" className="text-sm font-medium text-ink">
+							Base URL <span className="text-muted">(optional)</span>
+						</label>
+						<input
+							id="base-url"
+							type="text"
+							autoComplete="off"
+							spellCheck={false}
+							value={baseUrl}
+							onChange={(event) => setBaseUrl(event.target.value)}
+							placeholder={PROVIDER_DEFAULT_BASE_URLS[provider]}
+							className={`${inputClass} font-mono`}
+						/>
+						<p className="text-sm text-muted">
+							Leave empty to use the default endpoint for this provider, or set a custom
+							OpenAI-compatible base URL (e.g. https://api.groq.com/openai/v1).
+						</p>
+					</div>
 
 					<div className="mt-4 flex flex-col gap-[7px]">
 						<label htmlFor="api-key" className="text-sm font-medium text-ink">

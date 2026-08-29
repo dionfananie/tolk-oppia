@@ -83,6 +83,7 @@ export default function PracticeSetup() {
 			level: difficulty,
 			provider: base.provider,
 			model: base.model,
+			...(base.baseUrl ? { baseUrl: base.baseUrl } : {}),
 			apiKey: base.apiKey,
 			mode,
 		};

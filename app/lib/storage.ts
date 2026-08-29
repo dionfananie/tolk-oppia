@@ -8,6 +8,7 @@ export type Setup = {
 	provider: ProviderName;
 	model: string;
 	apiKey: string;
+	baseUrl?: string;
 	mode?: "voice" | "text";
 };
 
@@ -22,6 +23,7 @@ export type Session = {
 	level: EnglishLevel;
 	provider: ProviderName;
 	model: string;
+	baseUrl?: string;
 	startedAt: string;
 	endedAt: string;
 	messages: ChatMessage[];
@@ -33,6 +35,7 @@ type Prefs = {
 	level: EnglishLevel;
 	provider: ProviderName;
 	model: string;
+	baseUrl?: string;
 	mode: "voice" | "text";
 };
 
@@ -65,6 +68,7 @@ export function setSetup(setup: Setup | null): void {
 			level: setup.level,
 			provider: setup.provider,
 			model: setup.model,
+			baseUrl: setup.baseUrl,
 			mode: setup.mode ?? "text",
 		});
 	}
@@ -94,6 +98,7 @@ export function loadPrefs(): Prefs | null {
 				level: parsed.level as Prefs["level"],
 				provider: parsed.provider as Prefs["provider"],
 				model: parsed.model,
+				baseUrl: typeof parsed.baseUrl === "string" ? parsed.baseUrl : undefined,
 				mode: parsed.mode === "voice" ? "voice" : "text",
 			};
 		}

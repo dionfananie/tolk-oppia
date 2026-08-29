@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { PROVIDER_META, defaultModel, getModels, type ProviderName } from "~/lib/providers";
+import {
+	defaultModel,
+	PROVIDER_DEFAULT_BASE_URLS,
+	PROVIDER_META,
+	type ProviderName,
+} from "~/lib/providers";
 import type { Setup } from "~/lib/storage";
 import { inputClass } from "~/lib/ui";
 
@@ -20,10 +25,9 @@ export function ProviderSetupForm({
 	const [model, setModel] = useState<string>(
 		initial?.model || defaultModel(initial?.provider ?? "deepseek"),
 	);
+	const [baseUrl, setBaseUrl] = useState<string>(initial?.baseUrl ?? "");
 	const [apiKey, setApiKey] = useState(initial?.apiKey ?? "");
 	const [error, setError] = useState<string | null>(null);
-
-	const models = getModels(provider);
 
 	function changeProvider(next: ProviderName) {
 		setProvider(next);
@@ -37,7 +41,13 @@ export function ProviderSetupForm({
 			return;
 		}
 		setError(null);
-		onSave({ provider, model, apiKey: apiKey.trim(), level: initial?.level ?? "intermediate" });
+		onSave({
+			provider,
+			model: model.trim() || defaultModel(provider),
+			apiKey: apiKey.trim(),
+			...(baseUrl.trim() ? { baseUrl: baseUrl.trim() } : {}),
+			level: initial?.level ?? "intermediate",
+		});
 	}
 
 	return (
@@ -80,13 +90,44 @@ export function ProviderSetupForm({
 				<label htmlFor="model" className="text-sm font-medium text-ink">
 					Model
 				</label>
-				<select id="model" value={model} onChange={(event) => setModel(event.target.value)} className={inputClass}>
-					{models.map((m) => (
-						<option key={m.id} value={m.id}>
-							{m.id} · {m.description}
-						</option>
+				<input
+					id="model"
+					type="text"
+					autoComplete="off"
+					spellCheck={false}
+					value={model}
+					onChange={(event) => setModel(event.target.value)}
+					placeholder={defaultModel(provider)}
+					list="model-suggestions"
+					className={inputClass}
+				/>
+				<datalist id="model-suggestions">
+					{PROVIDER_META.flatMap((p) => p.models.map((m) => m.id)).map((id) => (
+						<option key={id} value={id} />
 					))}
-				</select>
+				</datalist>
+				<p className="text-sm text-muted">
+					Any model your provider supports, e.g. gpt-4o-mini, llama-3.3-70b, glm-4-plus.
+				</p>
+			</div>
+
+			<div className="flex flex-col gap-[7px]">
+				<label htmlFor="base-url" className="text-sm font-medium text-ink">
+					Base URL <span className="text-muted">(optional)</span>
+				</label>
+				<input
+					id="base-url"
+					type="text"
+					autoComplete="off"
+					spellCheck={false}
+					value={baseUrl}
+					onChange={(event) => setBaseUrl(event.target.value)}
+					placeholder={PROVIDER_DEFAULT_BASE_URLS[provider]}
+					className={`${inputClass} font-mono`}
+				/>
+				<p className="text-sm text-muted">
+					Leave empty for this provider's default, or set a custom OpenAI-compatible base URL.
+				</p>
 			</div>
 
 			<div className="flex flex-col gap-[7px]">

@@ -5,12 +5,14 @@ export type ChatMessage = {
 	content: string;
 };
 
-export type ProviderName = "deepseek" | "glm";
+export type ProviderName = "deepseek" | "glm" | "openai";
 
 export type LLMConfig = {
 	provider: ProviderName;
 	apiKey: string;
 	model: string;
+	/** Custom base URL for OpenAI-compatible endpoints (BYOK universal). */
+	baseUrl?: string;
 };
 
 export const PROVIDER_META: {
@@ -38,12 +40,38 @@ export const PROVIDER_META: {
 			{ id: "glm-4-plus", description: "Strongest model, slower" },
 		],
 	},
+	{
+		provider: "openai",
+		label: "OpenAI-compatible",
+		description:
+			"Bring any OpenAI-compatible API key (OpenAI, OpenRouter, Groq, Mistral, Together…) with a custom base URL and model.",
+		models: [
+			{ id: "gpt-4o-mini", description: "OpenAI — fast and cost-effective" },
+			{ id: "gpt-4o", description: "OpenAI — strong general model" },
+			{ id: "gpt-4.1-mini", description: "OpenAI — lightweight latest" },
+		],
+	},
 ];
+
+export const PROVIDER_DEFAULT_BASE_URLS: Record<ProviderName, string> = {
+	deepseek: "https://api.deepseek.com",
+	glm: "https://open.bigmodel.cn/api/paas/v4",
+	openai: "https://api.openai.com/v1",
+};
 
 const PROVIDER_ENDPOINTS: Record<ProviderName, string> = {
 	deepseek: "https://api.deepseek.com/chat/completions",
 	glm: "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+	openai: "https://api.openai.com/v1/chat/completions",
 };
+
+/** Normalize a base URL and append the chat completions path. */
+export function endpointFor(config: LLMConfig): string {
+	if (config.baseUrl && config.baseUrl.trim()) {
+		return config.baseUrl.trim().replace(/\/+$/, "") + "/chat/completions";
+	}
+	return PROVIDER_ENDPOINTS[config.provider];
+}
 
 export function getModels(provider: ProviderName) {
 	return PROVIDER_META.find((p) => p.provider === provider)?.models ?? [];
@@ -76,7 +104,7 @@ export async function chat(
 
 	let res: Response;
 	try {
-		res = await fetch(PROVIDER_ENDPOINTS[config.provider], {
+		res = await fetch(endpointFor(config), {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",

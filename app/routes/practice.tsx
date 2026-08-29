@@ -289,6 +289,7 @@ export default function Practice() {
 			level: setup.level,
 			provider: setup.provider,
 			model: setup.model,
+			...(setup.baseUrl ? { baseUrl: setup.baseUrl } : {}),
 			startedAt: startedAtRef.current ?? endedAt,
 			endedAt,
 			messages,
