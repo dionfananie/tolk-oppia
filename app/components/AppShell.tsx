@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { Brand } from "~/components/Brand";
 import { Button } from "~/components/Button";
 import { ThemeToggle } from "~/components/ThemeToggle";
+import { googleLoginUrl, logout, useAuth } from "~/lib/auth";
 import { IconChart, IconClock, IconMic, IconSliders } from "~/components/icons";
 
 export type NavKey = "dashboard" | "practice" | "progress" | "history" | "settings";
@@ -23,6 +24,49 @@ type Props = {
 	active: NavKey;
 	children: ReactNode;
 };
+
+/** Indikator akun di header — tombol login/logout. Client-only (skippable utk SSR). */
+function AccountControl() {
+	const { user, loading } = useAuth();
+	if (loading) {
+		return <span className="hidden size-9 flex-none animate-pulse rounded-full bg-base-200 sm:block" aria-hidden />;
+	}
+	if (!user) {
+		const returnTo =
+			typeof window !== "undefined"
+				? window.location.pathname + window.location.search
+				: "/";
+		return (
+			<a
+				href={googleLoginUrl(returnTo)}
+				className="btn btn-outline btn-sm hidden sm:inline-flex items-center justify-center gap-2 rounded-full focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 focus:ring-offset-base-100 focus:outline-none"
+			>
+				Continue with Google
+			</a>
+		);
+	}
+	const initial = (user.name || "U").slice(0, 1).toUpperCase();
+	return (
+		<div className="relative flex items-center">
+			{user.avatar_url ? (
+				<img src={user.avatar_url} alt="" className="size-9 rounded-full object-cover ring-2 ring-base-200" />
+			) : (
+				<span className="grid size-9 place-items-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
+					{initial}
+				</span>
+			)}
+			<button
+				type="button"
+				onClick={() => void logout()}
+				title={`Keluar (${user.name || user.email || "akun"})`}
+				aria-label="Keluar"
+				className="ml-2 hidden rounded-full border border-base-300 px-3 py-1 text-xs font-semibold text-base-content/70 transition-colors hover:border-base-content/30 hover:text-base-content sm:block"
+			>
+				Keluar
+			</button>
+		</div>
+	);
+}
 
 export function AppShell({ active, children }: Props) {
 	return (
@@ -50,6 +94,7 @@ export function AppShell({ active, children }: Props) {
 						})}
 					</nav>
 					<div className="ml-auto flex items-center gap-2">
+						<AccountControl />
 						<ThemeToggle />
 						<Button to="/practice">Start Practice</Button>
 					</div>

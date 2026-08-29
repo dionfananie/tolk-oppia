@@ -5,7 +5,7 @@ import { AppShell } from "~/components/AppShell";
 import { Button } from "~/components/Button";
 import { Segmented } from "~/components/Segmented";
 import { ProviderSetupForm, type ProviderFormValue } from "~/components/ProviderSetupForm";
-import { saveServerSetup, useAuth } from "~/lib/auth";
+import { saveServerSetup, useAuth, fetchServerSetup } from "~/lib/auth";
 import { getScenario, type EnglishLevel } from "~/data/scenarios";
 import { isSpeechSupported } from "~/lib/speech";
 import {
@@ -46,7 +46,7 @@ export default function PracticeSetup() {
 	const scenario = scenarioId ? getScenario(scenarioId) : undefined;
 
 	const existing = getSetup();
-	const { user } = useAuth();
+	const { user, loading: authLoading } = useAuth();
 	const [userRole, setUserRole] = useState(scenario?.userRole ?? "");
 	const [aiRole, setAiRole] = useState(scenario?.aiRole ?? "");
 	const [goal, setGoal] = useState(scenario?.objective ?? "");
@@ -76,6 +76,26 @@ export default function PracticeSetup() {
 			setMode(draft.mode);
 		}
 	}, [scenario]);
+
+	// Tarik server key saat login — agar tak perlu input key lagi utk mulai practice.
+	useEffect(() => {
+		if (authLoading || !user) return;
+		async function loadServerSetup() {
+			const serverSetup = await fetchServerSetup();
+			if (serverSetup) {
+				setProvider((prev) => ({
+					level: prev?.level ?? difficulty,
+					provider: serverSetup.provider as Setup["provider"],
+					model: serverSetup.model,
+					serverKey: serverSetup.hasKey,
+					mode: prev?.mode ?? mode,
+				}));
+				if (serverSetup.hasKey) setConfigured(true);
+			}
+		}
+		void loadServerSetup();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [authLoading, user]);
 
 	if (!scenario) return null;
 
