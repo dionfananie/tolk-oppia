@@ -62,7 +62,7 @@ export class OpenAICompatibleProvider implements AIProvider {
 				method: "POST",
 				headers: {
 					"content-type": "application/json",
-					authorization: `Bearer ${params.apiKey}`,
+					"authorization": `Bearer ${params.apiKey}`,
 				},
 				body: JSON.stringify(body),
 			});
