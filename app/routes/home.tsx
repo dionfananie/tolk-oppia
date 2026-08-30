@@ -3,6 +3,7 @@ import type { Route } from "./+types/home";
 import { Brand } from "~/components/Brand";
 import { Button } from "~/components/Button";
 import { ThemeToggle } from "~/components/ThemeToggle";
+import { AccountMenu } from "~/components/AppShell";
 import { Orb } from "~/components/Orb";
 import {
 	IconBriefcase,
@@ -78,9 +79,7 @@ export default function Home() {
 					</nav>
 					<div className="ml-auto flex items-center gap-2">
 						<ThemeToggle />
-						<Link to="/login" className="hidden rounded-lg px-4 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface hover:text-ink sm:inline-flex sm:min-h-[44px] sm:items-center">
-							Sign in
-						</Link>
+						<AccountMenu />
 						<Button to="/practice">Start practicing</Button>
 					</div>
 				</div>

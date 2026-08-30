@@ -30,7 +30,7 @@ type Props = {
 /** Dropdown akun di header: avatar (gambar/initial) yang saat diklik membuka menu.
  * Login → menu berisi Sign out. Belum login → menu berisi Sign in / Sign up.
  * Client-only; tutup saat klik di luar. */
-function AccountMenu() {
+export function AccountMenu() {
 	const { user, loading } = useAuth();
 	const [open, setOpen] = useState(false);
 	const ref = useRef<HTMLDivElement>(null);
