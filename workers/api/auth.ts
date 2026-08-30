@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import { encryptKey } from "../lib/crypto";
 import { testKey } from "../ai/router";
 import { getProvider } from "../ai/registry";
+import { DEEPGRAM_PROVIDER, testDeepgramKey } from "../ai/deepgram";
 import { AIError } from "../ai/types";
 import {
 	createSession,
@@ -47,6 +48,21 @@ authApp.post("/keys/test", async (c) => {
 	const provider = (body.provider ?? "").trim();
 	const apiKey = (body.apiKey ?? "").trim();
 	if (!provider || !apiKey) return json({ error: "provider & apiKey wajib" }, 400);
+
+	if (provider === DEEPGRAM_PROVIDER) {
+		try {
+			const valid = await testDeepgramKey(apiKey);
+			return valid
+				? json({ valid: true, provider })
+				: json({ valid: false, error: "Deepgram key tidak valid." }, 400);
+		} catch (err) {
+			return json(
+				{ valid: false, error: "Gagal validasi Deepgram: " + (err instanceof Error ? err.message : "unknown") },
+				400,
+			);
+		}
+	}
+
 	const providerCfg = getProvider(provider);
 	if (!providerCfg) return json({ error: `Provider "${provider}" tidak didukung.` }, 400);
 	const model = (body.model ?? "").trim() || providerCfg.models[0]?.id || "";
@@ -273,22 +289,47 @@ authApp.post("/keys", async (c) => {
 	const provider = (body.provider ?? "").trim();
 	const apiKey = (body.apiKey ?? "").trim();
 	if (!provider || !apiKey) return json({ error: "provider & apiKey wajib" }, 400);
-	const providerCfg = getProvider(provider);
-	if (!providerCfg) return json({ error: `Provider "${provider}" tidak didukung.` }, 400);
 	if (!master) return json({ error: "KEY_STORE_MASTER belum dikonfigurasi" }, 500);
 
-	const model = (body.model ?? "").trim() || providerCfg.models[0]?.id || "";
-	const label = (body.label ?? "Personal").trim() || "Personal";
-	const baseURL = (body.baseURL ?? "").trim() || undefined;
+	const isDeepgram = provider === DEEPGRAM_PROVIDER;
 
-	// Validasi key ke provider (1 pesan chat) — jangan andalkan format string.
-	try {
-		await testKey(provider as never, apiKey, model, baseURL);
-	} catch (err) {
-		const msg =
-			err instanceof AIError ? err.message : "Validasi key gagal. Periksa kembali key dan model.";
-		return json({ error: msg, code: err instanceof AIError ? err.code : "INVALID_API_KEY" }, 400);
+	// Deepgram: tanpa chat model; validasi lewat akses /projects.
+	let model: string;
+	let baseURL: string | undefined;
+	if (isDeepgram) {
+		try {
+			const valid = await testDeepgramKey(apiKey);
+			if (!valid) {
+				return json({ error: "Deepgram key tidak valid.", code: "INVALID_API_KEY" }, 400);
+			}
+		} catch (err) {
+			return json(
+				{
+					error: "Gagal validasi Deepgram: " + (err instanceof Error ? err.message : "unknown"),
+					code: "INVALID_API_KEY",
+				},
+				400,
+			);
+		}
+		model = (body.model ?? "").trim() || "";
+		baseURL = undefined;
+	} else {
+		const providerCfg = getProvider(provider);
+		if (!providerCfg) return json({ error: `Provider "${provider}" tidak didukung.` }, 400);
+		model = (body.model ?? "").trim() || providerCfg.models[0]?.id || "";
+		baseURL = (body.baseURL ?? "").trim() || undefined;
+
+		// Validasi key ke provider (1 pesan chat) — jangan andalkan format string.
+		try {
+			await testKey(provider as never, apiKey, model, baseURL);
+		} catch (err) {
+			const msg =
+				err instanceof AIError ? err.message : "Validasi key gagal. Periksa kembali key dan model.";
+			return json({ error: msg, code: err instanceof AIError ? err.code : "INVALID_API_KEY" }, 400);
+		}
 	}
+
+	const label = (body.label ?? "Personal").trim() || "Personal";
 
 	const { encKey, iv } = await encryptKey(apiKey, master);
 	const now = Date.now();

@@ -50,6 +50,10 @@ export type Settings = {
 	promptStyle: "direct" | "encouraging";
 	speechRate: "slow" | "normal" | "fast";
 	voiceUri: string;
+	sttProvider: SpeechProviderChoice;
+	ttsProvider: SpeechProviderChoice;
+	/** Voice Aura (Deepgram TTS). */
+	deepgramVoice: string;
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -58,6 +62,9 @@ const DEFAULT_SETTINGS: Settings = {
 	promptStyle: "encouraging",
 	speechRate: "normal",
 	voiceUri: "",
+	sttProvider: "webspeech",
+	ttsProvider: "webspeech",
+	deepgramVoice: "aura-asteria-en",
 };
 
 let memorySetup: Setup | null = null;
@@ -77,6 +84,9 @@ export function setSetup(setup: Setup | null): void {
 		});
 	}
 }
+
+/** Provider yang dipakai utk STT/TTS. default 'webspeech' (tak butuh setup). */
+export type SpeechProviderChoice = "webspeech" | "deepgram";
 
 function savePrefs(prefs: Prefs): void {
 	if (typeof window === "undefined") return;
@@ -136,6 +146,10 @@ export function loadSettings(): Settings {
 			promptStyle: parsed.promptStyle === "direct" ? "direct" : "encouraging",
 			speechRate: parsed.speechRate ?? DEFAULT_SETTINGS.speechRate,
 			voiceUri: typeof parsed.voiceUri === "string" ? parsed.voiceUri : DEFAULT_SETTINGS.voiceUri,
+			sttProvider: parsed.sttProvider === "deepgram" ? "deepgram" : "webspeech",
+			ttsProvider: parsed.ttsProvider === "deepgram" ? "deepgram" : "webspeech",
+			deepgramVoice:
+				typeof parsed.deepgramVoice === "string" ? parsed.deepgramVoice : DEFAULT_SETTINGS.deepgramVoice,
 		};
 	} catch {
 		return DEFAULT_SETTINGS;

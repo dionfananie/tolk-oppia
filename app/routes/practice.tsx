@@ -21,12 +21,10 @@ import {
 } from "~/lib/storage";
 import { formatClock } from "~/lib/format";
 import {
-	createRecognizer,
 	isSpeechSupported,
-	isTtsSupported,
 	rateFromSetting,
-	speak,
-	stopSpeaking,
+	useSTT,
+	useTTS,
 } from "~/lib/speech";
 import { ProviderSetupForm } from "~/components/ProviderSetupForm";
 import { Orb, type OrbState } from "~/components/Orb";
@@ -72,9 +70,7 @@ export default function Practice() {
 	const busyRef = useRef(false);
 	const listeningRef = useRef(false);
 	const orbRef = useRef<OrbState>("idle");
-	const recognizerRef = useRef<ReturnType<typeof createRecognizer>>(null);
 	const transcriptRef = useRef<HTMLDivElement | null>(null);
-	const inputRef = useRef<HTMLInputElement | null>(null);
 
 	const useDraft = Boolean(draft && draft.scenarioId === scenario?.id && draft.userRole);
 	const effectiveScenario =
@@ -89,6 +85,9 @@ export default function Practice() {
 
 	const voiceSupported = isSpeechSupported();
 	const useVoice = mode === "voice" && voiceSupported;
+
+	const stt = useSTT();
+	const tts = useTTS();
 
 	useEffect(() => {
 		if (!scenario) navigate("/", { replace: true });
@@ -111,12 +110,11 @@ export default function Practice() {
 	}, [orbState]);
 
 	function autoSpeak(text: string) {
-		if (!isTtsSupported()) return;
+		if (!tts.controller.isSupported) return;
 		const settings = loadSettings();
 		setOrbState("speaking");
-		speak(text, {
+		void tts.controller.speak(text, {
 			rate: rateFromSetting(settings.speechRate),
-			voiceUri: settings.voiceUri,
 			onEnd: () => {
 				if (!listeningRef.current) setOrbState("idle");
 			},
@@ -225,48 +223,22 @@ export default function Practice() {
 
 	function startListening() {
 		if (busyRef.current || listeningRef.current) return;
-		stopSpeaking();
+		tts.controller.cancel();
 		listeningRef.current = true;
 		setListening(true);
 		setOrbState("listening");
 		setCaptionText("Listening… tap to stop");
-		const recognizer = createRecognizer({
+		void stt.controller.start({
 			onFinal: (text) => {
 				if (!text) return;
 				setCaptionText(text);
 				void send(text);
 			},
-			onInterim: (text) => {
-				if (text) setCaptionText(text);
-			},
-			onEnd: () => {
-				listeningRef.current = false;
-				setListening(false);
-				if (orbRef.current === "listening") setOrbState("idle");
-			},
-			onError: (err) => {
-				listeningRef.current = false;
-				setListening(false);
-				if (err === "aborted" || err === "no-speech") {
-					setOrbState("idle");
-					setCaptionText("Didn't catch that. Tap again or type below.");
-				} else {
-					setOrbState("error");
-					setCaptionText("Microphone unavailable. Type your response below.");
-				}
-			},
 		});
-		if (!recognizer) {
-			listeningRef.current = false;
-			setListening(false);
-			return;
-		}
-		recognizerRef.current = recognizer;
-		recognizer.start();
 	}
 
 	function stopListening() {
-		recognizerRef.current?.stop();
+		stt.controller.stop();
 	}
 
 	function toggleClickToSpeak() {
@@ -278,9 +250,38 @@ export default function Practice() {
 		startListening();
 	}
 
+	// Sinkronkan state `listening` lokal dengan isListening provider aktif (auto-stop Web Speech).
+	useEffect(() => {
+		if (stt.controller.isListening) {
+			listeningRef.current = true;
+			return;
+		}
+		if (listeningRef.current) {
+			listeningRef.current = false;
+			setListening(false);
+			if (orbRef.current === "listening") setOrbState("idle");
+		}
+	}, [stt.controller.isListening]);
+
+	// Tampilkan interim transcript live sebagai caption saat mendengarkan.
+	useEffect(() => {
+		if (listeningRef.current && stt.controller.interimTranscript) {
+			setCaptionText(stt.controller.interimTranscript);
+		}
+	}, [stt.controller.interimTranscript]);
+
+	// Error dari provider STT (mis. mik tidak diizinkan) → kembali idle dengan pesan.
+	useEffect(() => {
+		if (!stt.controller.error) return;
+		listeningRef.current = false;
+		setListening(false);
+		if (orbRef.current === "listening") setOrbState("idle");
+		setCaptionText("Didn't catch that. Tap again or type below.");
+	}, [stt.controller.error]);
+
 	async function finish() {
 		if (!setup || !scenario || !effectiveScenario || messages.length === 0 || busy) return;
-		stopSpeaking();
+		tts.controller.cancel();
 		setBusy(true);
 		setError(null);
 		const endedAt = new Date().toISOString();

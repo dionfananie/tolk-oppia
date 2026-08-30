@@ -30,7 +30,14 @@ import {
 	setupReady,
 	type Setup,
 } from "~/lib/storage";
-import { getVoices, isSpeechSupported, isTtsSupported, speak, type Voice } from "~/lib/speech";
+import {
+	DEEPGRAM_VOICES,
+	fetchHasDeepgramKey,
+	getVoices,
+	isTtsSupported,
+	useTTS,
+	type Voice,
+} from "~/lib/speech";
 import { LEVEL_CEFR } from "~/lib/stats";
 import type { EnglishLevel } from "~/data/scenarios";
 
@@ -72,9 +79,17 @@ export default function Settings() {
 		promptStyle: "encouraging" as "direct" | "encouraging",
 		speechRate: "normal" as "slow" | "normal" | "fast",
 		voiceUri: "",
+		sttProvider: "webspeech" as "webspeech" | "deepgram",
+		ttsProvider: "webspeech" as "webspeech" | "deepgram",
+		deepgramVoice: "aura-asteria-en",
 	});
 	const [hydrated, setHydrated] = useState(false);
 	const [addingKey, setAddingKey] = useState(false);
+	const [dgKey, setDgKey] = useState("");
+	const [dgKeyBusy, setDgKeyBusy] = useState(false);
+	const [dgHasKey, setDgHasKey] = useState<boolean | null>(null);
+	const [dgKeyMsg, setDgKeyMsg] = useState<string | null>(null);
+	const tts = useTTS();
 
 	useEffect(() => {
 		const prefs = loadPrefs();
@@ -113,6 +128,20 @@ export default function Settings() {
 			setServerSetupLoaded(true);
 		}
 		void loadKeys();
+	}, [authLoading, user]);
+
+	useEffect(() => {
+		if (authLoading || !user) {
+			setDgHasKey(false);
+			return;
+		}
+		let cancelled = false;
+		void fetchHasDeepgramKey().then((ok) => {
+			if (!cancelled) setDgHasKey(ok);
+		});
+		return () => {
+			cancelled = true;
+		};
 	}, [authLoading, user]);
 
 	useEffect(() => {
@@ -194,7 +223,37 @@ export default function Settings() {
 	}
 
 	function testVoice() {
-		speak("Hello, I'm your English coach. Let's practice.", { voiceUri: settings.voiceUri });
+		void tts.controller.speak("Hello, I'm your English coach. Let's practice.");
+	}
+
+	async function handleSaveDeepgramKey() {
+		if (!user) {
+			setDgKeyMsg("Login dulu untuk menyimpan key Deepgram.");
+			return;
+		}
+		if (!dgKey.trim()) {
+			setDgKeyMsg("Masukkan API key Deepgram.");
+			return;
+		}
+		setDgKeyBusy(true);
+		setDgKeyMsg(null);
+		const r = await saveServerKey({ provider: "deepgram", apiKey: dgKey.trim(), model: "" });
+		setDgKeyBusy(false);
+		if (!r.ok) {
+			setDgKeyMsg(r.error || "Gagal menyimpan key Deepgram. Periksa kembali.");
+			return;
+		}
+		setDgKey("");
+		const ok = await fetchHasDeepgramKey();
+		setDgHasKey(ok);
+		setDgKeyMsg("Key Deepgram tersimpan & tervalidasi.");
+	}
+
+	async function handleRemoveDeepgramKey() {
+		if (!user) return;
+		await deleteServerKey("deepgram");
+		setDgHasKey(false);
+		setDgKeyMsg("Key Deepgram dihapus.");
 	}
 
 	async function signOut() {
@@ -394,45 +453,165 @@ export default function Settings() {
 			<section className="mt-8">
 				<SectionTitle>Voice</SectionTitle>
 				<p className="mb-4 mt-1.5 text-sm text-muted">
-					Voice uses your browser's speech tools. No API key needed.
+					Pilih mesin STT & TTS. Browser adalah bawaan tanpa perlu key; Deepgram butuh API
+					key dan menawarkan kualitas lebih baik.
 				</p>
 				<div className="rounded-lg border border-line bg-paper">
+					{/* STT engine */}
 					<div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft p-5">
 						<div>
-							<p className="text-[15px] font-semibold text-ink">Speech-to-text</p>
-							<p className="mt-1 text-sm text-muted">Transcribes your spoken turns.</p>
-						</div>
-						<Badge dot={mounted && isSpeechSupported() ? "success" : "muted"}>
-							{!mounted
-								? "Checking…"
-								: isSpeechSupported()
-									? "Browser · available"
-									: "Browser · unsupported"}
-						</Badge>
-					</div>
-					<div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft p-5">
-						<div>
-							<p className="text-[15px] font-semibold text-ink">Voice</p>
-							<p className="mt-1 text-sm text-muted">Your coach&rsquo;s speaking voice.</p>
+							<p className="text-[15px] font-semibold text-ink">Speech-to-text engine</p>
+							<p className="mt-1 text-sm text-muted">Mesin yang mentranskripsi ucapanmu.</p>
 						</div>
 						<select
-							value={settings.voiceUri}
-							onChange={(event) => update("voiceUri", event.target.value)}
-							disabled={!mounted || !isTtsSupported()}
-							className="max-w-[260px] rounded-lg border border-line bg-paper px-3.5 py-2.5 text-sm text-ink"
+							value={settings.sttProvider}
+							onChange={(event) =>
+								update("sttProvider", event.target.value as "webspeech" | "deepgram")
+							}
+							disabled={!mounted}
+							className="max-w-[240px] rounded-lg border border-line bg-paper px-3.5 py-2.5 text-sm text-ink"
 						>
-							<option value="">Default voice</option>
-							{voices.map((voice) => (
-								<option key={voice.uri} value={voice.uri}>
-									{voice.name} · {voice.lang}
-								</option>
-							))}
+							<option value="webspeech">Browser</option>
+							<option value="deepgram">Deepgram</option>
 						</select>
 					</div>
+
+					{/* TTS engine */}
+					<div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft p-5">
+						<div>
+							<p className="text-[15px] font-semibold text-ink">Voice engine</p>
+							<p className="mt-1 text-sm text-muted">Suara yang dipakai coach membacakan.</p>
+						</div>
+						<select
+							value={settings.ttsProvider}
+							onChange={(event) =>
+								update("ttsProvider", event.target.value as "webspeech" | "deepgram")
+							}
+							disabled={!mounted}
+							className="max-w-[240px] rounded-lg border border-line bg-paper px-3.5 py-2.5 text-sm text-ink"
+						>
+							<option value="webspeech">Browser</option>
+							<option value="deepgram">Deepgram (Aura)</option>
+						</select>
+					</div>
+
+					{settings.ttsProvider === "deepgram" ? (
+						<div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft p-5">
+							<div>
+								<p className="text-[15px] font-semibold text-ink">Deepgram voice</p>
+								<p className="mt-1 text-sm text-muted">Pilih suara Aura untuk TTS.</p>
+							</div>
+							<select
+								value={settings.deepgramVoice}
+								onChange={(event) => update("deepgramVoice", event.target.value)}
+								disabled={!mounted}
+								className="max-w-[260px] rounded-lg border border-line bg-paper px-3.5 py-2.5 text-sm text-ink"
+							>
+								{DEEPGRAM_VOICES.map((voice) => (
+									<option key={voice.id} value={voice.id}>
+										{voice.label}
+									</option>
+								))}
+							</select>
+						</div>
+					) : (
+						<div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft p-5">
+							<div>
+								<p className="text-[15px] font-semibold text-ink">Voice</p>
+								<p className="mt-1 text-sm text-muted">Suara browser untuk TTS.</p>
+							</div>
+							<select
+								value={settings.voiceUri}
+								onChange={(event) => update("voiceUri", event.target.value)}
+								disabled={!mounted || !isTtsSupported()}
+								className="max-w-[260px] rounded-lg border border-line bg-paper px-3.5 py-2.5 text-sm text-ink"
+							>
+								<option value="">Default voice</option>
+								{voices.map((voice) => (
+									<option key={voice.uri} value={voice.uri}>
+										{voice.name} · {voice.lang}
+									</option>
+								))}
+							</select>
+						</div>
+					)}
+
+					{(settings.sttProvider === "deepgram" || settings.ttsProvider === "deepgram") && (
+						<div className="border-b border-line-soft p-5">
+							<div className="flex flex-wrap items-center justify-between gap-3">
+								<div>
+									<p className="text-[15px] font-semibold text-ink">Deepgram API key</p>
+									<p className="mt-1 text-sm text-muted">
+										Key dikirim ke server TOLK, divalidasi, lalu disimpan terenkripsi. Tidak
+										pernah masuk browser.
+									</p>
+								</div>
+								{dgHasKey ? (
+									<div className="flex flex-wrap items-center gap-3">
+										<Badge dot="success">Deepgram key aktif</Badge>
+										<button
+											type="button"
+											onClick={() => void handleRemoveDeepgramKey()}
+											className="text-xs font-semibold text-danger transition hover:opacity-80"
+										>
+											Hapus
+										</button>
+									</div>
+								) : (
+									<Badge dot="muted">
+										{user ? "Belum ada key" : "Perlu login"}
+									</Badge>
+								)}
+							</div>
+
+							{!user ? (
+								<div className="mt-4">
+									<Button
+										to={googleLoginUrl(currentReturnTo())}
+										variant="secondary"
+										className="w-full sm:w-auto"
+									>
+										Continue with Google
+									</Button>
+								</div>
+							) : dgHasKey ? null : (
+								<div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+									<div className="w-full sm:max-w-[360px]">
+										<label htmlFor="dg-key" className="text-sm font-medium text-ink">
+											API key Deepgram
+										</label>
+										<input
+											id="dg-key"
+											type="password"
+											autoComplete="off"
+											spellCheck={false}
+											value={dgKey}
+											onChange={(event) => setDgKey(event.target.value)}
+											placeholder="Masukkan key Deepgram…"
+											className="mt-1.5 w-full rounded-lg border border-line bg-paper px-3.5 py-2.5 text-sm text-ink"
+										/>
+									</div>
+									<Button
+										variant="secondary"
+										onClick={() => void handleSaveDeepgramKey()}
+										disabled={dgKeyBusy || !dgKey.trim()}
+										className="sm:min-h-[44px]"
+									>
+										{dgKeyBusy ? "Menyimpan…" : "Simpan key"}
+									</Button>
+								</div>
+							)}
+
+							{dgKeyMsg && (
+								<p className="mt-3 rounded-md bg-surface px-3 py-2 text-sm text-ink-2">{dgKeyMsg}</p>
+							)}
+						</div>
+					)}
+
 					<div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft p-5">
 						<div>
 							<p className="text-[15px] font-semibold text-ink">Speaking speed</p>
-							<p className="mt-1 text-sm text-muted">How fast responses are read aloud.</p>
+							<p className="mt-1 text-sm text-muted">Kecepatan jawaban dibacakan.</p>
 						</div>
 						<Segmented
 							label="Speaking speed"
@@ -448,9 +627,18 @@ export default function Settings() {
 					<div className="flex flex-wrap items-center justify-between gap-3 p-5">
 						<div>
 							<p className="text-[15px] font-semibold text-ink">Test Voice</p>
-							<p className="mt-1 text-sm text-muted">Hear the selected voice read a sample.</p>
+							<p className="mt-1 text-sm text-muted">Dengar voice terpilih membaca sampel.</p>
 						</div>
-						<Button variant="secondary" onClick={testVoice} disabled={!mounted || !isTtsSupported()}>
+						<Button
+							variant="secondary"
+							onClick={testVoice}
+							disabled={
+								!mounted ||
+								(settings.ttsProvider === "deepgram"
+									? !dgHasKey
+									: !isTtsSupported())
+							}
+						>
 							Test Voice
 						</Button>
 					</div>

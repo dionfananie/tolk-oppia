@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { authApp } from "./api/auth";
 import { chatApp } from "./api/chat";
 import { providersApp } from "./api/providers";
+import { deepgramApp } from "./api/deepgram";
 
 declare module "react-router" {
 	export interface AppLoadContext {
@@ -22,6 +23,7 @@ const requestHandler = createRequestHandler(
 const apiApp = new Hono<{ Bindings: Env }>().basePath("/api");
 apiApp.route("/", providersApp);
 apiApp.route("/", chatApp);
+apiApp.route("/", deepgramApp);
 
 function handleApi(request: Request, env: Env): Promise<Response> | Response {
 	const url = new URL(request.url);

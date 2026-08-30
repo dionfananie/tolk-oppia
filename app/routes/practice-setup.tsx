@@ -7,7 +7,7 @@ import { Segmented } from "~/components/Segmented";
 import { ProviderSetupForm, type ProviderFormValue } from "~/components/ProviderSetupForm";
 import { saveServerKey, useAuth, fetchServerKeys, googleLoginUrl } from "~/lib/auth";
 import { getScenario, type EnglishLevel } from "~/data/scenarios";
-import { isSpeechSupported } from "~/lib/speech";
+import { isSpeechSupported } from "~/lib/speech-core";
 import {
 	clearDraft,
 	getSetup,
