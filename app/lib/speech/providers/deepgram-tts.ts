@@ -39,7 +39,10 @@ export function useDeepgramTTS(): TTSController {
 						// body bukan json
 					}
 					setError(msg);
-					return;
+					// Throw supaya facade useTTS menangkapnya dan auto-fallback ke Web Speech.
+					const err = new Error(msg);
+					err.name = "DeepgramTTSUnavailable";
+					throw err;
 				}
 				const blob = await res.blob();
 				const url = URL.createObjectURL(blob);

@@ -74,10 +74,14 @@ NOTE: `app/lib/speech/providers/` TIDAK punya barrel sendirian; yang jadi entry 
 ## 6. Potensi concern / hal yang dicek saat uji
 
 - **MediaRecorder encoding**: `audio/webm;codecs=opus` tidak didukung semua Safari/iOS. Provider deepgram-stt sudah fallback ke `audio/webm` polos, tapi kalau target user iOS perlu encoding lain (plan §6 asli). Uji di Chrome dulu (paling stabil).
-- **STT Deepgram (no-key) tidak auto-fallback via throw**: kalau Deepgram dipilih tapi key belum ada, `deepgram.start()` tidak me-reject (meng-set `error`/`isListening=false`), jadi facade TTS auto-fallback tidak aktif untuk STT — hanya `controller.error` yang tampil. Ini keputusan desain; user lihat error "Simpan key dulu". Bisa dipertimbangkan perbaikan nanti: facade cek `fetchHasDeepgramKey()` sebelum memilih deepgram.
-  - TTS Deepgram (no-key): `deepgram.speak` akan throw (HTTP 404 `no_deepgram_key` → `setError` tapi tidak throw)... PERLU DICEK: kalau `deepgram.speak` tidak me-reject saat 404, facade capture `catch` tidak aktif → harusnya fallback ke webspeech. Ini titik uji penting (#5). Jika tidak throw → tambahkan deteksi: di `useDeepgramTTS`/facade, treat `!res.ok` sebagai throw agar auto-fallback jalan.
+- **STT Deepgram (no-key) tidak auto-fallback via throw**: kalau Deepgram dipilih tapi key belum ada, `deepgram.start()` tidak me-reject (meng-set `error`/`isListening=false`), jadi facade TTS auto-fallback tidak aktif untuk STT — hanya `controller.error` yang tampil. Ini keputusan desain; user lihat error "Simpan key dulu". Catatan: STT tidak bisa pakai pola throw-fallback karena struktur `start()` me-resolve lebih dulu (fetch berjalan async terpisah di `void (async()=>{})()`).
+- **TTS Deepgram (no-key) — SUDAH DIPERBAIKI sesi ini**: `useDeepgramTTS.speak` kini **me-reject** (throw `DeepgramTTSUnavailable`) saat `!res.ok`, sehingga facade `useTTS` di `try/catch` menangkapnya dan **auto-fallback ke Web Speech**. Jadi memilih TTS Deepgram tanpa key → suara tetap dibaca browser (tidak senyap). Verifikasi manual tetap disarankan saat uji live.
 - **Auto-fallback & voice provider per-ucapan** (`useTTS`): tested reason; verifikasi manual dengan key yang tidak valid.
 - **Barrel vs file nama**: JANGAN re-name `speech-core.ts` kembali ke `speech.ts`; itu akan memicu bentrok resolve lagi.
+
+### 6b. Perbaikan post-push (sesi ini)
+
+- [x] `useDeepgramTTS.speak` → throw saat `!res.ok` supaya auto-fallback TTS aktif. Commit `?next?` (cek & push setelah ini).
 
 ---
 
