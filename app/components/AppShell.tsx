@@ -4,7 +4,7 @@ import { Brand } from "~/components/Brand";
 import { Button } from "~/components/Button";
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { googleLoginUrl, logout, useAuth } from "~/lib/auth";
-import { IconChart, IconClock, IconMic, IconSliders } from "~/components/icons";
+import { IconChart, IconClock, IconList, IconMic, IconSliders } from "~/components/icons";
 
 export type NavKey = "dashboard" | "practice" | "progress" | "history" | "settings";
 
@@ -13,7 +13,9 @@ const NAV_ITEMS: {
 	label: string;
 	to: string;
 	icon: (props: { className?: string }) => React.ReactNode;
+	authOnly?: boolean;
 }[] = [
+	{ key: "dashboard", label: "Dashboard", to: "/dashboard", icon: IconList, authOnly: true },
 	{ key: "practice", label: "Practice", to: "/practice", icon: IconMic },
 	{ key: "progress", label: "Progress", to: "/progress", icon: IconChart },
 	{ key: "history", label: "History", to: "/history", icon: IconClock },
@@ -69,13 +71,17 @@ function AccountControl() {
 }
 
 export function AppShell({ active, children }: Props) {
+	const { user } = useAuth();
+	// Dashboard (authOnly) hanya muncul saat sudah login.
+	const visibleNav = NAV_ITEMS.filter((item) => !item.authOnly || user);
+
 	return (
 		<div className="min-h-dvh bg-base-100 text-base-content">
 			<header className="sticky top-0 z-[60] border-b border-base-300 bg-base-100/90 backdrop-blur">
 				<div className="mx-auto flex h-14 max-w-[1024px] items-center gap-6 px-4 sm:px-6">
-					<Brand to="/app" />
+					<Brand to="/" />
 					<nav aria-label="Primary" className="ml-4 hidden items-center gap-1 sm:flex">
-						{NAV_ITEMS.map((item) => {
+						{visibleNav.map((item) => {
 							const current = item.key === active;
 							return (
 								<Link
@@ -107,9 +113,11 @@ export function AppShell({ active, children }: Props) {
 
 			<nav
 				aria-label="Primary"
-				className="fixed bottom-0 left-0 right-0 z-[60] grid grid-cols-4 border-t border-base-300 bg-base-100/90 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden"
+				className={`fixed bottom-0 left-0 right-0 z-[60] grid border-t border-base-300 bg-base-100/90 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden ${
+					visibleNav.length === 5 ? "grid-cols-5" : "grid-cols-4"
+				}`}
 			>
-				{NAV_ITEMS.map((item) => {
+				{visibleNav.map((item) => {
 					const current = item.key === active;
 					return (
 						<Link

@@ -10,7 +10,7 @@ export function meta({}: Route.MetaArgs) {
 export default function Signup() {
 	const returnTo = typeof window !== "undefined"
 		? window.location.pathname + window.location.search
-		: "/app";
+		: "/dashboard";
 
 	return (
 		<AuthShell
@@ -54,7 +54,7 @@ export default function Signup() {
 					<div className="h-px flex-1 bg-line-soft" />
 				</div>
 
-				<Button to="/app" variant="secondary" size="lg">
+				<Button to="/dashboard" variant="secondary" size="lg">
 					Continue as guest
 				</Button>
 			</div>
