@@ -1,10 +1,10 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { Brand } from "~/components/Brand";
 import { Button } from "~/components/Button";
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { googleLoginUrl, logout, useAuth } from "~/lib/auth";
-import { IconChart, IconClock, IconList, IconMic, IconSliders } from "~/components/icons";
+import { IconChart, IconClock, IconList, IconMic, IconSliders, IconUser } from "~/components/icons";
 
 export type NavKey = "dashboard" | "practice" | "progress" | "history" | "settings";
 
@@ -27,45 +27,92 @@ type Props = {
 	children: ReactNode;
 };
 
-/** Indikator akun di header — tombol login/logout. Client-only (skippable utk SSR). */
-function AccountControl() {
+/** Dropdown akun di header: avatar (gambar/initial) yang saat diklik membuka menu.
+ * Login → menu berisi Sign out. Belum login → menu berisi Sign in / Sign up.
+ * Client-only; tutup saat klik di luar. */
+function AccountMenu() {
 	const { user, loading } = useAuth();
+	const [open, setOpen] = useState(false);
+	const ref = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		if (!open) return;
+		function onDocClick(e: MouseEvent) {
+			if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+		}
+		document.addEventListener("mousedown", onDocClick);
+		return () => document.removeEventListener("mousedown", onDocClick);
+	}, [open]);
+
 	if (loading) {
 		return <span className="hidden size-9 flex-none animate-pulse rounded-full bg-base-200 sm:block" aria-hidden />;
 	}
-	if (!user) {
-		const returnTo =
-			typeof window !== "undefined"
-				? window.location.pathname + window.location.search
-				: "/";
-		return (
-			<a
-				href={googleLoginUrl(returnTo)}
-				className="btn btn-outline btn-sm hidden sm:inline-flex items-center justify-center gap-2 rounded-full focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 focus:ring-offset-base-100 focus:outline-none"
-			>
-				Continue with Google
-			</a>
-		);
-	}
-	const initial = (user.name || "U").slice(0, 1).toUpperCase();
+
+	const returnTo = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/";
+
 	return (
-		<div className="relative flex items-center">
-			{user.avatar_url ? (
-				<img src={user.avatar_url} alt="" className="size-9 rounded-full object-cover ring-2 ring-base-200" />
-			) : (
-				<span className="grid size-9 place-items-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
-					{initial}
-				</span>
-			)}
+		<div ref={ref} className="relative flex-none">
 			<button
 				type="button"
-				onClick={() => void logout()}
-				title={`Keluar (${user.name || user.email || "akun"})`}
-				aria-label="Keluar"
-				className="ml-2 hidden rounded-full border border-base-300 px-3 py-1 text-xs font-semibold text-base-content/70 transition-colors hover:border-base-content/30 hover:text-base-content sm:block"
+				onClick={() => setOpen((v) => !v)}
+				aria-haspopup="menu"
+				aria-expanded={open}
+				aria-label={user ? "Menu akun" : "Masuk atau buat akun"}
+				className="grid size-[44px] place-items-center overflow-hidden rounded-full border border-base-300 bg-base-200 text-base-content/70 transition-colors hover:border-base-content/30 hover:text-base-content focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 focus:ring-offset-base-100 focus:outline-none"
 			>
-				Keluar
+				{user?.avatar_url ? (
+					<img src={user.avatar_url} alt="" className="size-full object-cover" />
+				) : (
+					<IconUser className="size-6" />
+				)}
 			</button>
+
+			{open && (
+				<div
+					role="menu"
+					className="absolute right-0 mt-2 w-60 overflow-hidden rounded-xl border border-base-300 bg-base-100 p-1.5 shadow-lg"
+				>
+					{user ? (
+						<>
+							<div className="px-3 py-2">
+								<p className="truncate text-sm font-semibold text-base-content">
+									{user.name || "Akun"}
+								</p>
+								{user.email && (
+									<p className="truncate text-xs text-base-content/60">{user.email}</p>
+								)}
+							</div>
+							<div className="my-1 h-px bg-base-200" />
+							<button
+								type="button"
+								onClick={() => void logout()}
+								role="menuitem"
+								className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-error transition-colors hover:bg-error/10"
+							>
+								Sign out
+							</button>
+						</>
+					) : (
+						<>
+							<a
+								href={googleLoginUrl(returnTo)}
+								role="menuitem"
+								className="block w-full rounded-lg px-3 py-2 text-sm font-semibold text-base-content transition-colors hover:bg-base-200"
+							>
+								Sign in
+							</a>
+							<Link
+								to="/signup"
+								role="menuitem"
+								onClick={() => setOpen(false)}
+								className="block w-full rounded-lg px-3 py-2 text-sm font-semibold text-base-content/70 transition-colors hover:bg-base-200 hover:text-base-content"
+							>
+								Sign up
+							</Link>
+						</>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -100,9 +147,9 @@ export function AppShell({ active, children }: Props) {
 						})}
 					</nav>
 					<div className="ml-auto flex items-center gap-2">
-						<AccountControl />
-						<ThemeToggle />
 						<Button to="/practice">Start Practice</Button>
+						<ThemeToggle />
+						<AccountMenu />
 					</div>
 				</div>
 			</header>

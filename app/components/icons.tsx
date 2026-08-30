@@ -189,3 +189,12 @@ export function IconInbox({ className }: IconProps) {
 		</svg>
 	);
 }
+
+export function IconUser({ className }: IconProps) {
+	return (
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={base(className)}>
+			<circle cx="12" cy="8" r="3.4" />
+			<path d="M4.5 20c.9-3.4 3.9-5 7.5-5s6.6 1.6 7.5 5" />
+		</svg>
+	);
+}
