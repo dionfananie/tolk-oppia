@@ -27,8 +27,7 @@ export const PROVIDERS: ProviderConfig[] = [
 		models: [
 			{ id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", capabilities: { chat: true, vision: false, tools: true, structuredOutput: true } },
 			{ id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", capabilities: { chat: true, vision: false, tools: true, structuredOutput: true } },
-			{ id: "deepseek-chat", name: "DeepSeek Chat (V3)", capabilities: { chat: true, vision: false, tools: true, structuredOutput: true } },
-			{ id: "deepseek-reasoner", name: "DeepSeek Reasoner (R1)", capabilities: { chat: true, vision: false, tools: false, structuredOutput: false } },
+			{ id: "deepseek-v4-flash-vision-exp", name: "DeepSeek V4 Flash Vision (Exp)", capabilities: { chat: true, vision: true, tools: true, structuredOutput: true } },
 		],
 	},
 	{

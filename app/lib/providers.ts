@@ -53,8 +53,7 @@ export const PROVIDER_META: {
 		models: [
 			{ id: "deepseek-v4-flash", label: "DeepSeek V4 Flash" },
 			{ id: "deepseek-v4-pro", label: "DeepSeek V4 Pro" },
-			{ id: "deepseek-chat", label: "DeepSeek Chat (V3)" },
-			{ id: "deepseek-reasoner", label: "DeepSeek Reasoner (R1)" },
+			{ id: "deepseek-v4-flash-vision-exp", label: "DeepSeek V4 Flash Vision (Exp)" },
 		],
 	},
 	{

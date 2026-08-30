@@ -64,7 +64,7 @@ export async function testKey(
 		model,
 		baseURL,
 		temperature: 0,
-		maxTokens: 8,
+		maxTokens: 64,
 		messages: [{ role: "user", content: "Reply with the single word: ok" }],
 	});
 	return typeof result.content === "string" && result.content.length > 0;
