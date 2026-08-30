@@ -2,25 +2,21 @@ import type { EnglishLevel } from "~/data/scenarios";
 import type { ChatMessage } from "~/lib/providers";
 import type { Feedback } from "~/lib/feedback";
 
-export type ProviderName = "deepseek" | "zai" | "meta" | "chatgpt" | "claude";
+export type ProviderName = "openai" | "deepseek" | "anthropic" | "gemini" | "openrouter" | "groq" | "together";
 
 export type Setup = {
 	level: EnglishLevel;
 	provider: ProviderName;
 	model: string;
-	/**
-	 * OpenRouter key (BYOK lokal, browser-side) — kosong jika key tersimpan di server.
-	 * `apiKey` isi → chat() fetch OpenRouter langsung; kosong + `serverKey=true` → relay /api/chat.
-	 */
-	apiKey?: string;
-	/** true = user login & key tersimpan terenkripsi di server → pakai relay. */
+	/** true = user login & key provider tersimpan terenkripsi di server (pakai relay /api/chat).
+	 *  Key TIDAK pernah disimpan atau beredar di frontend. */
 	serverKey?: boolean;
 	mode?: "voice" | "text";
 };
 
-/** True jika setup sudah bisa dipakai (ada key lokal ATAU server key tersimpan). */
+/** True jika setup sudah bisa dipakai: user login & key tersimpan server (serverKey). */
 export function setupReady(setup: Setup | null | undefined): boolean {
-	return Boolean(setup && (setup.apiKey || setup.serverKey));
+	return Boolean(setup && setup.serverKey);
 }
 
 const SESSIONS_KEY = "tolk-oppia.sessions.v1";
@@ -118,37 +114,14 @@ export function loadPrefs(): Prefs | null {
 export function setupFromPrefs(): Setup | null {
 	const prefs = loadPrefs();
 	if (!prefs) return null;
-	// Provider/model diambil dari prefs; key AKAN diisi ulang dari localStorage BYOK (loadLocalApiKey)
-	// atau serverKey saat login. Tanpa itu, `apiKey` kosong (pakai relay kalau login).
+	// Provider/model dari prefs. Key TIDAK ada di frontend — chat() selalu relay /api/chat,
+	// server memakai key tersimpan. `serverKey` diisi terpisah saat diketahui user login.
 	return {
 		level: prefs.level,
 		provider: prefs.provider,
 		model: prefs.model,
 		mode: prefs.mode,
-		apiKey: loadLocalApiKey() ?? undefined,
 	};
-}
-
-// ── BYOK lokal: persist key OpenRouter di localStorage (opsional, agar tak re-input tiap load) ──
-const LOCAL_API_KEY = "tolk-oppia.apiKey.v1";
-
-export function saveLocalApiKey(key: string): void {
-	if (typeof window === "undefined") return;
-	try {
-		if (key) window.localStorage.setItem(LOCAL_API_KEY, key);
-		else window.localStorage.removeItem(LOCAL_API_KEY);
-	} catch {
-		/* storage unavailable */
-	}
-}
-
-export function loadLocalApiKey(): string | null {
-	if (typeof window === "undefined") return null;
-	try {
-		return window.localStorage.getItem(LOCAL_API_KEY);
-	} catch {
-		return null;
-	}
 }
 
 export function loadSettings(): Settings {

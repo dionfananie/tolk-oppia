@@ -1,7 +1,12 @@
-// auth.ts — Hono app: Google OAuth login/signup + `/me` + `/setup` (simpan/key API terenkripsi).
+// auth.ts — Hono app: Google OAuth login/signup + `/me` + multi-provider API key management.
+// API key disimpan TER-ENKRIPSI di server (AES-GCM), TIDAK pernah dikembalikan penuh ke frontend
+// (hanya `key_hint` di-mask), dan divalidasi ke provider saat disimpan (bukan cek format string).
 // Diadaptasi dari quran-hadis/workers/api/odoj.ts (Google OAuth, zero-dep).
 import { Hono } from "hono";
-import { encryptKey, decryptKey } from "../lib/crypto";
+import { encryptKey } from "../lib/crypto";
+import { testKey } from "../ai/router";
+import { getProvider } from "../ai/registry";
+import { AIError } from "../ai/types";
 import {
 	createSession,
 	getSessionUser,
@@ -31,6 +36,33 @@ type GoogleTokenResp = { access_token?: string; error?: string };
 type GoogleUser = { id?: string; email?: string; name?: string; picture?: string };
 
 export const authApp = new Hono<{ Bindings: Env }>().basePath("/api/auth");
+
+// POST /api/auth/keys/test → validasi key ke provider TANPA menyimpan. { provider, apiKey, model?, baseURL? }
+authApp.post("/keys/test", async (c) => {
+	const db = c.env.tolk_db;
+	const userId = await getSessionUser(db, c.req.raw);
+	if (!userId) return json({ error: "unauthorized" }, 401);
+	const rawBody = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+	const body = rawBody as { provider?: string; apiKey?: string; model?: string; baseURL?: string };
+	const provider = (body.provider ?? "").trim();
+	const apiKey = (body.apiKey ?? "").trim();
+	if (!provider || !apiKey) return json({ error: "provider & apiKey wajib" }, 400);
+	const providerCfg = getProvider(provider);
+	if (!providerCfg) return json({ error: `Provider "${provider}" tidak didukung.` }, 400);
+	const model = (body.model ?? "").trim() || providerCfg.models[0]?.id || "";
+	const baseURL = (body.baseURL ?? "").trim() || undefined;
+	try {
+		await testKey(provider as never, apiKey, model, baseURL);
+		return json({ valid: true, provider });
+	} catch (err) {
+		const msg =
+			err instanceof AIError ? err.message : "Validasi key gagal. Periksa kembali key dan model.";
+		return json(
+			{ valid: false, error: msg, code: err instanceof AIError ? err.code : "INVALID_API_KEY" },
+			400,
+		);
+	}
+});
 
 // Redirect konsen Google
 authApp.get("/google", async (c) => {
@@ -172,68 +204,153 @@ authApp.post("/logout", async (c) => {
 	return res;
 });
 
-// ── SETUP (API key terenkripsi — server-side, dipakai relay /api/chat) ──
-// GET /api/auth/setup → { setup: {provider, model, hasKey} } — TANPA kirim key plaintext.
-authApp.get("/setup", async (c) => {
+// ── MULTI-PROVIDER API KEYS (BYOK server-side) ──────────────────────────────────────────
+// Semua endpoint butuh login. Key divalidasi ke provider saat simpan, dienkripsi AES-GCM,
+// dan frontend hanya menerima `key_hint` (di-mask) — key penuh TIDAK pernah keluar server.
+
+/** Buat hint key untuk tampilan (masking). Contoh: `sk-…8F2A`. */
+function makeKeyHint(raw: string): string {
+	const key = raw.trim();
+	if (!key) return "";
+	const tail = key.slice(-4);
+	const prefix = key.slice(0, 3);
+	return `${prefix}…${tail}`;
+}
+
+type CredKeyRow = {
+	provider: string;
+	label: string;
+	default_model: string | null;
+	base_url: string | null;
+	encrypted_api_key: string;
+	iv: string;
+	key_hint: string;
+	is_default: number;
+	last_validated_at: number | null;
+};
+
+// GET /api/auth/keys → list provider+model+baseURL+key_hint user (TANPA key penuh).
+authApp.get("/keys", async (c) => {
 	const db = c.env.tolk_db;
 	const userId = await getSessionUser(db, c.req.raw);
 	if (!userId) return json({ error: "unauthorized" }, 401);
-	const row = await db
-		.prepare(`SELECT provider, model FROM api_keys WHERE user_id = ?`)
+
+	const rows = await db
+		.prepare(
+			`SELECT provider, label, default_model, base_url, key_hint, is_default, last_validated_at
+			 FROM user_ai_credentials WHERE user_id = ? ORDER BY provider`,
+		)
 		.bind(userId)
-		.first<{ provider: string; model: string }>();
-	if (!row) return json({ setup: null });
-	return json({ setup: { provider: row.provider, model: row.model, hasKey: true } });
+		.all<CredKeyRow>();
+	const keys = (rows.results ?? []).map((r) => ({
+		provider: r.provider,
+		label: r.label,
+		model: r.default_model ?? "",
+		baseURL: r.base_url ?? undefined,
+		keyHint: r.key_hint,
+		isDefault: Boolean(r.is_default),
+		lastValidatedAt: r.last_validated_at ?? undefined,
+	}));
+	return json({ keys });
 });
 
-// POST /api/auth/setup → simpan { provider, model, apiKey } terenkripsi.
-// apiKey kosong → hanya update provider/model (pertahankan key lama).
-authApp.post("/setup", async (c) => {
+// POST /api/auth/keys → validasi key ke provider, simpan terenkripsi.
+// { provider, apiKey, model?, label?, baseURL? } — model default dari registry bila kosong.
+authApp.post("/keys", async (c) => {
 	const db = c.env.tolk_db;
 	const master = c.env.KEY_STORE_MASTER;
 	const userId = await getSessionUser(db, c.req.raw);
 	if (!userId) return json({ error: "unauthorized" }, 401);
+
 	const rawBody = await c.req.json<Record<string, unknown>>().catch(() => ({}));
-	const body = rawBody as { provider?: string; model?: string; apiKey?: string };
-	const provider = typeof body.provider === "string" ? body.provider.trim() : "";
-	const model = typeof body.model === "string" ? body.model.trim() : "";
-	if (!provider || !model) return json({ error: "provider & model wajib" }, 400);
+	const body = rawBody as {
+		provider?: string;
+		apiKey?: string;
+		model?: string;
+		label?: string;
+		baseURL?: string;
+	};
+	const provider = (body.provider ?? "").trim();
+	const apiKey = (body.apiKey ?? "").trim();
+	if (!provider || !apiKey) return json({ error: "provider & apiKey wajib" }, 400);
+	const providerCfg = getProvider(provider);
+	if (!providerCfg) return json({ error: `Provider "${provider}" tidak didukung.` }, 400);
 	if (!master) return json({ error: "KEY_STORE_MASTER belum dikonfigurasi" }, 500);
 
+	const model = (body.model ?? "").trim() || providerCfg.models[0]?.id || "";
+	const label = (body.label ?? "Personal").trim() || "Personal";
+	const baseURL = (body.baseURL ?? "").trim() || undefined;
+
+	// Validasi key ke provider (1 pesan chat) — jangan andalkan format string.
+	try {
+		await testKey(provider as never, apiKey, model, baseURL);
+	} catch (err) {
+		const msg =
+			err instanceof AIError ? err.message : "Validasi key gagal. Periksa kembali key dan model.";
+		return json({ error: msg, code: err instanceof AIError ? err.code : "INVALID_API_KEY" }, 400);
+	}
+
+	const { encKey, iv } = await encryptKey(apiKey, master);
+	const now = Date.now();
 	const existing = await db
-		.prepare(`SELECT enc_key, iv FROM api_keys WHERE user_id = ?`)
-		.bind(userId)
-		.first<{ enc_key: string; iv: string }>();
+		.prepare(`SELECT id FROM user_ai_credentials WHERE user_id = ? AND provider = ?`)
+		.bind(userId, provider)
+		.first<{ id: number }>();
 
-	const newKey = typeof body.apiKey === "string" && body.apiKey.trim() ? body.apiKey.trim() : null;
-
-	if (newKey) {
-		const { encKey, iv } = await encryptKey(newKey, master);
+	if (existing) {
 		await db
 			.prepare(
-				`INSERT INTO api_keys (user_id, provider, model, enc_key, iv, created_at)
-				 VALUES (?, ?, ?, ?, ?, ?)
-				 ON CONFLICT(user_id) DO UPDATE SET provider = excluded.provider, model = excluded.model, enc_key = excluded.enc_key, iv = excluded.iv`,
+				`UPDATE user_ai_credentials
+				 SET label = ?, default_model = ?, base_url = ?, encrypted_api_key = ?, iv = ?,
+				     key_hint = ?, last_validated_at = ?, updated_at = ?
+				 WHERE user_id = ? AND provider = ?`,
 			)
-			.bind(userId, provider, model, encKey, iv, Date.now())
+			.bind(label, model, baseURL ?? null, encKey, iv, makeKeyHint(apiKey), now, now, userId, provider)
 			.run();
 	} else {
-		// update provider/model tanpa ganti key (pertahankan cipher lama kalau ada)
-		if (model) {
-			await db
-				.prepare(`UPDATE api_keys SET provider = ?, model = ? WHERE user_id = ?`)
-				.bind(provider, model, userId)
-				.run();
-		}
+		await db
+			.prepare(
+				`INSERT INTO user_ai_credentials
+				 (user_id, provider, label, default_model, base_url, encrypted_api_key, iv,
+				  key_hint, is_default, last_validated_at, created_at, updated_at)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.bind(
+				userId, provider, label, model, baseURL ?? null, encKey, iv,
+				makeKeyHint(apiKey), 0, now, now, now,
+			)
+			.run();
 	}
-	return json({ ok: true, hasKey: true });
+
+	return json({ ok: true, keyHint: makeKeyHint(apiKey), validated: true });
 });
 
-// POST /api/auth/setup/clear → hapus key tersimpan (sign out dari provider)
-authApp.post("/setup/clear", async (c) => {
+// DELETE /api/auth/keys/:provider → hapus key provider tsb (permanen, sesuai permintaan user).
+authApp.delete("/keys/:provider", async (c) => {
 	const db = c.env.tolk_db;
 	const userId = await getSessionUser(db, c.req.raw);
 	if (!userId) return json({ error: "unauthorized" }, 401);
-	await db.prepare(`DELETE FROM api_keys WHERE user_id = ?`).bind(userId).run();
+	const provider = c.req.param("provider");
+	await db
+		.prepare(`DELETE FROM user_ai_credentials WHERE user_id = ? AND provider = ?`)
+		.bind(userId, provider)
+		.run();
+	return json({ ok: true });
+});
+
+// PATCH /api/auth/keys/:provider/default → jadikan key ini default (selected saat chat).
+authApp.patch("/keys/:provider/default", async (c) => {
+	const db = c.env.tolk_db;
+	const userId = await getSessionUser(db, c.req.raw);
+	if (!userId) return json({ error: "unauthorized" }, 401);
+	const provider = c.req.param("provider");
+	await db
+		.prepare(`UPDATE user_ai_credentials SET is_default = 0 WHERE user_id = ?`)
+		.bind(userId)
+		.run();
+	await db
+		.prepare(`UPDATE user_ai_credentials SET is_default = 1 WHERE user_id = ? AND provider = ?`)
+		.bind(userId, provider)
+		.run();
 	return json({ ok: true });
 });

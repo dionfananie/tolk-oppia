@@ -1,10 +1,12 @@
-// chat.ts — Relay /api/chat: server decrypt key tersimpan (api_keys) lalu call OpenRouter.
-// Key TIDAK pernah keluar ke browser. Dipanggil client setelah login (setup tersimpan server-side).
+// chat.ts — Relay /api/chat (server-proxy): server decrypt key milik user, call provider
+// lewat Provider Router (multi-provider), normalisasi respon & error. Key TIDAK pernah
+// ke browser. Dilkukan setelah login; provider/model dipilih di frontend dr list connected.
+
 import { Hono } from "hono";
 import { decryptKey } from "../lib/crypto";
 import { getSessionUser } from "../lib/session";
-
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+import { generate } from "../ai/router";
+import { AIError } from "../ai/types";
 
 const json = (data: unknown, status = 200) =>
 	new Response(JSON.stringify(data), {
@@ -14,83 +16,106 @@ const json = (data: unknown, status = 200) =>
 
 type ChatMsg = { role: "system" | "user" | "assistant"; content: string };
 
-export const chatApp = new Hono<{ Bindings: Env }>().basePath("/api");
+// ── Rate limit sederhana (in-memory per isolate): batas per user_id + provider per menit.
+// Catatan: best-effort (reset saat isolate baru). Cukup utk cegah abuse satu user.
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX = 60; // 60 request/menit per user (keseluruhan, semua provider juga dihitung per provider di bawah).
+type RateBucket = { count: number; resetAt: number };
+const rate = new Map<string, RateBucket>();
 
-// POST /api/chat { model, messages, temperature?, maxTokens?, json? }
-// Ambil apiKey dari api_keys milik user login (server-side, terenkripsi).
-// Fallback jika user belum simpan key: error blok — client harus simpan lewat /api/auth/setup
-// ATAU pakai BYOK lokal (client fetch langsung, di luar relay ini).
+function rateLimited(scope: string): boolean {
+	const now = Date.now();
+	const bucket = rate.get(scope);
+	if (!bucket || now >= bucket.resetAt) {
+		rate.set(scope, { count: 1, resetAt: now + RATE_WINDOW_MS });
+		return false;
+	}
+	bucket.count += 1;
+	return bucket.count > RATE_MAX;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Mount ke apiApp (basePath "/api") di workers/app.ts — jangan basePath sendiri di sini.
+export const chatApp = new Hono<{ Bindings: Env }>();
+
+// (mounted sbg /api/chat via apiApp)
 chatApp.post("/chat", async (c) => {
 	const db = c.env.tolk_db;
 	const master = c.env.KEY_STORE_MASTER;
 	const userId = await getSessionUser(db, c.req.raw);
 	if (!userId) return json({ error: "unauthorized — login required" }, 401);
 
-	const rawJson = await c.req.json<Record<string, unknown>>().catch(() => ({}));
-	const raw = rawJson as {
+	if (rateLimited(`chat:${userId}`)) return json({ error: "RATE_LIMITED: terlalu banyak request, coba sebentar lagi." }, 429);
+	if (!master) return json({ error: "KEY_STORE_MASTER belum dikonfigurasi" }, 500);
+
+	const rawBody = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+	const raw = rawBody as {
+		provider?: string;
 		model?: string;
 		messages?: ChatMsg[];
 		temperature?: number;
 		maxTokens?: number;
 		json?: boolean;
 	};
-	const { model, messages, temperature, maxTokens, json: wantJson } = raw;
-	if (!model || !Array.isArray(messages)) return json({ error: "model & messages wajib" }, 400);
+	const provider = (raw.provider ?? "").trim();
+	const model = (raw.model ?? "").trim();
+	const { messages, temperature, maxTokens, json: wantJson } = raw;
+	if (!provider || !model || !Array.isArray(messages) || messages.length === 0) {
+		return json({ error: "provider, model & messages wajib" }, 400);
+	}
 
-	const keyRow = await db
-		.prepare(`SELECT enc_key, iv FROM api_keys WHERE user_id = ?`)
-		.bind(userId)
-		.first<{ enc_key: string; iv: string }>();
-	if (!keyRow) return json({ error: "no_api_key" }, 404);
-	if (!master) return json({ error: "KEY_STORE_MASTER belum dikonfigurasi" }, 500);
+	// Ambil credential utk (user, provider), decrypt key di server.
+	const row = await db
+		.prepare(
+			`SELECT encrypted_api_key, iv, base_url FROM user_ai_credentials
+			 WHERE user_id = ? AND provider = ?`,
+		)
+		.bind(userId, provider)
+		.first<{ encrypted_api_key: string; iv: string; base_url: string | null }>();
 
-	const apiKey = await decryptKey(keyRow.enc_key, keyRow.iv, master);
+	if (!row) {
+		return json({ error: "no_api_key", message: `Belum ada API key utk provider "${provider}". Buka Settings → AI provider lalu simpan key.` }, 404);
+	}
+	if (rateLimited(`chat:${userId}:${provider}`)) return json({ error: "RATE_LIMITED: terlalu banyak request ke provider ini." }, 429);
 
-	const body: Record<string, unknown> = {
-		model,
-		messages,
-		temperature: temperature ?? 0.7,
-		max_tokens: maxTokens ?? 1024,
-	};
-	if (wantJson) body.response_format = { type: "json_object" };
+	const apiKey = await decryptKey(row.encrypted_api_key, row.iv, master);
 
-	let res: Response;
 	try {
-		res = await fetch(OPENROUTER_URL, {
-			method: "POST",
-			headers: {
-				"content-type": "application/json",
-				authorization: `Bearer ${apiKey}`,
-				"HTTP-Referer": "https://tolk.oppia.world",
-				"X-Title": "TOLK",
-			},
-			body: JSON.stringify(body),
+		const result = await generate(provider as never, {
+			apiKey,
+			model,
+			messages,
+			temperature,
+			maxTokens,
+			json: wantJson,
+			baseURL: row.base_url ?? undefined,
 		});
+		return json({ content: result.content, usage: result.usage });
 	} catch (err) {
-		return json({ error: `Gagal menghubungi OpenRouter: ${err instanceof Error ? err.message : "network error"}` }, 502);
-	}
-
-	const text = await res.text();
-	if (!res.ok) {
-		let detail = `HTTP ${res.status}`;
-		try {
-			const d = JSON.parse(text) as { error?: { message?: string } };
-			if (d?.error?.message) detail = d.error.message;
-		} catch {
-			/* ignore */
+		if (err instanceof AIError) {
+			return json({ error: err.message, code: err.code, retryable: err.retryable }, httpFor(err.code));
 		}
-		return json({ error: `OpenRouter request failed: ${detail}` }, res.status);
+		return json({ error: `Terjadi kesalahan memanggil provider: ${err instanceof Error ? err.message : "unknown"}` }, 502);
 	}
-
-	let data: { choices?: { message?: { content?: string } }[] };
-	try {
-		data = JSON.parse(text);
-	} catch {
-		return json({ error: "Respon OpenRouter tidak valid" }, 502);
-	}
-	const content = data?.choices?.[0]?.message?.content;
-	if (typeof content !== "string" || !content.trim()) {
-		return json({ error: "OpenRouter returned an empty response." }, 502);
-	}
-	return json({ content: content.trim() });
 });
+
+// sleep dipakai utk backoff kecil di retry — sementara dipakai utk rate-limit friendly.
+export { sleep };
+
+function httpFor(code: "INVALID_API_KEY" | "RATE_LIMITED" | "INSUFFICIENT_CREDITS" | "MODEL_NOT_FOUND" | "PROVIDER_ERROR" | "TIMEOUT" | "UNSUPPORTED_PROVIDER"): number {
+	switch (code) {
+		case "INVALID_API_KEY":
+			return 401;
+		case "RATE_LIMITED":
+			return 429;
+		case "MODEL_NOT_FOUND":
+			return 404;
+		case "TIMEOUT":
+			return 504;
+		case "INSUFFICIENT_CREDITS":
+			return 402;
+		default:
+			return 502;
+	}
+}

@@ -70,18 +70,79 @@ export async function logout(): Promise<void> {
 	}
 }
 
-/** Simpan/update setup key ke server (login). Return boolean sukses. */
-export async function saveServerSetup(value: {
+export type StoredKey = {
 	provider: string;
+	label: string;
 	model: string;
-	apiKey?: string;
-}): Promise<boolean> {
+	baseURL?: string;
+	keyHint: string;
+	isDefault: boolean;
+	lastValidatedAt?: number;
+};
+
+/** Validasi key ke provider (tanpa simpan). Mengembalikan { valid, error? }. */
+export async function testServerKey(value: {
+	provider: string;
+	apiKey: string;
+	model?: string;
+	baseURL?: string;
+}): Promise<{ valid: boolean; error?: string }> {
 	try {
-		const res = await fetch("/api/auth/setup", {
+		const res = await fetch("/api/auth/keys/test", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			credentials: "same-origin",
 			body: JSON.stringify(value),
+		});
+		const data = (await res.json().catch(() => ({}))) as { valid?: boolean; error?: string };
+		return { valid: Boolean(data.valid), error: data.error };
+	} catch {
+		return { valid: false, error: "Gagal terhubung server." };
+	}
+}
+
+/** Simpan/tambah key utk provider ke server (login). Server memvalidasi key ke provider dulu.
+ *  Mengembalikan { ok, error? } — key TIDAK pernah dikembalikan penuh ke client. */
+export async function saveServerKey(value: {
+	provider: string;
+	apiKey: string;
+	model?: string;
+	label?: string;
+	baseURL?: string;
+}): Promise<{ ok: boolean; error?: string; code?: string }> {
+	try {
+		const res = await fetch("/api/auth/keys", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			credentials: "same-origin",
+			body: JSON.stringify(value),
+		});
+		const data = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+		if (!res.ok) return { ok: false, error: data.error, code: data.code };
+		return { ok: true };
+	} catch {
+		return { ok: false, error: "Gagal terhubung server. Coba lagi." };
+	}
+}
+
+/** Ambil semua key+provider yg tersimpan di akun user (TANPA key penuh, hanya hint di-mask). */
+export async function fetchServerKeys(): Promise<StoredKey[] | null> {
+	try {
+		const res = await fetch("/api/auth/keys", { credentials: "same-origin" });
+		if (!res.ok) return null;
+		const data = (await res.json()) as { keys?: StoredKey[] };
+		return data.keys ?? [];
+	} catch {
+		return null;
+	}
+}
+
+/** Hapus key utk provider tertentu dari akun. */
+export async function deleteServerKey(provider: string): Promise<boolean> {
+	try {
+		const res = await fetch(`/api/auth/keys/${encodeURIComponent(provider)}`, {
+			method: "DELETE",
+			credentials: "same-origin",
 		});
 		return res.ok;
 	} catch {
@@ -89,29 +150,15 @@ export async function saveServerSetup(value: {
 	}
 }
 
-/** Baca setup server (provider/model + ada key atau tidak). */
-export async function fetchServerSetup(): Promise<{
-	provider: string;
-	model: string;
-	hasKey: boolean;
-} | null> {
+/** Jadikan key provider tsb default di akun. */
+export async function setDefaultServerKey(provider: string): Promise<boolean> {
 	try {
-		const res = await fetch("/api/auth/setup", { credentials: "same-origin" });
-		if (!res.ok) return null;
-		const data = (await res.json()) as {
-			setup?: { provider: string; model: string; hasKey: boolean } | null;
-		};
-		return data.setup ?? null;
+		const res = await fetch(`/api/auth/keys/${encodeURIComponent(provider)}/default`, {
+			method: "PATCH",
+			credentials: "same-origin",
+		});
+		return res.ok;
 	} catch {
-		return null;
-	}
-}
-
-/** Hapus key tersimpan server (sign out dari provider). */
-export async function clearServerSetup(): Promise<void> {
-	try {
-		await fetch("/api/auth/setup/clear", { method: "POST", credentials: "same-origin" });
-	} catch {
-		/* ignore */
+		return false;
 	}
 }

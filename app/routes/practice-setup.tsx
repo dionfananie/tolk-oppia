@@ -5,7 +5,7 @@ import { AppShell } from "~/components/AppShell";
 import { Button } from "~/components/Button";
 import { Segmented } from "~/components/Segmented";
 import { ProviderSetupForm, type ProviderFormValue } from "~/components/ProviderSetupForm";
-import { saveServerSetup, useAuth, fetchServerSetup } from "~/lib/auth";
+import { saveServerKey, useAuth, fetchServerKeys, googleLoginUrl } from "~/lib/auth";
 import { getScenario, type EnglishLevel } from "~/data/scenarios";
 import { isSpeechSupported } from "~/lib/speech";
 import {
@@ -14,7 +14,6 @@ import {
 	loadDraft,
 	loadPrefs,
 	saveDraft,
-	saveLocalApiKey,
 	setSetup,
 	setupReady,
 	type Setup,
@@ -77,20 +76,22 @@ export default function PracticeSetup() {
 		}
 	}, [scenario]);
 
-	// Tarik server key saat login — agar tak perlu input key lagi utk mulai practice.
+	// Tarik key server saat login — agar tak perlu input key lagi utk mulai practice.
 	useEffect(() => {
 		if (authLoading || !user) return;
 		async function loadServerSetup() {
-			const serverSetup = await fetchServerSetup();
-			if (serverSetup) {
+			const keys = await fetchServerKeys();
+			if (keys && keys.length > 0) {
+				// Ambil default pertama (atau is_default pertama). Provider/model dari key.
+				const def = keys.find((k) => k.isDefault) ?? keys[0];
 				setProvider((prev) => ({
 					level: prev?.level ?? difficulty,
-					provider: serverSetup.provider as Setup["provider"],
-					model: serverSetup.model,
-					serverKey: serverSetup.hasKey,
+					provider: def.provider as Setup["provider"],
+					model: def.model,
+					serverKey: true,
 					mode: prev?.mode ?? mode,
 				}));
-				if (serverSetup.hasKey) setConfigured(true);
+				setConfigured(true);
 			}
 		}
 		void loadServerSetup();
@@ -107,7 +108,6 @@ export default function PracticeSetup() {
 			level: difficulty,
 			provider: base.provider,
 			model: base.model,
-			...(base.apiKey ? { apiKey: base.apiKey } : {}),
 			...(base.serverKey ? { serverKey: base.serverKey } : {}),
 			mode,
 		};
@@ -222,26 +222,43 @@ export default function PracticeSetup() {
 						<div className="mt-6 border-t border-line-soft pt-6">
 							<p className="text-sm font-semibold text-ink">Connect your AI provider</p>
 							<p className="mt-1 text-sm text-muted">
-								Pilih provider & model (OpenRouter). Login untuk pakai key tersimpan di
-								server; tanpa login, masukkan key OpenRouter yang disimpan di browser ini.
+								Pilih provider, masukkan API key untuk disimpan aman di akun (server-proxy).
+								Key dipakai server saat chat — tidak pernah dipakai dari browser.
 							</p>
 							<div className="mt-4">
-								<ProviderSetupForm
-									compact
-									initial={
-										provider
-											? {
-													provider: provider.provider,
-													model: provider.model,
-													...(provider.apiKey ? { apiKey: provider.apiKey } : {}),
-												}
-											: null
-									}
-									hasStoredKey={Boolean(user && provider?.serverKey)}
-									onSave={(value) => {
-										// Simpan key sesuai mode, lalu bangun Setup siap pakai.
-										if (user) {
-											void saveServerSetup({ provider: value.provider, model: value.model, apiKey: value.apiKey });
+								{!user && !authLoading ? (
+									<Button
+										to={googleLoginUrl(`/practice/${scenarioId}/setup`)}
+										variant="secondary"
+										className="w-full"
+									>
+										Login dengan Google untuk menghubungkan key
+									</Button>
+								) : (
+									<ProviderSetupForm
+										compact
+										initial={
+											provider
+												? {
+														provider: provider.provider,
+														model: provider.model,
+													}
+												: null
+										}
+										onSave={async (value) => {
+											if (!user) return;
+											const r = value.apiKey
+												? await saveServerKey({
+														provider: value.provider,
+														apiKey: value.apiKey,
+														model: value.model,
+														...(value.baseURL ? { baseURL: value.baseURL } : {}),
+													})
+												: { ok: true };
+											if (!r.ok) {
+												// key invalid — jangan set configured
+												return;
+											}
 											setProvider((prev) => ({
 												level: prev?.level ?? difficulty,
 												provider: value.provider,
@@ -249,19 +266,10 @@ export default function PracticeSetup() {
 												serverKey: true,
 												mode: prev?.mode ?? mode,
 											}));
-										} else {
-											if (value.apiKey) saveLocalApiKey(value.apiKey);
-											setProvider((prev) => ({
-												level: prev?.level ?? difficulty,
-												provider: value.provider,
-												model: value.model,
-												...(value.apiKey ? { apiKey: value.apiKey } : {}),
-												mode: prev?.mode ?? mode,
-											}));
-										}
-										setConfigured(true);
-									}}
-								/>
+											setConfigured(true);
+										}}
+									/>
+								)}
 							</div>
 						</div>
 					)}

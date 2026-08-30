@@ -11,19 +11,20 @@ import {
 	ProviderSetupForm,
 	type ProviderFormValue,
 } from "~/components/ProviderSetupForm";
-import { chat, defaultModel, providerLabel } from "~/lib/providers";
+import { chat, defaultModel, providerLabel, PROVIDER_META, type ProviderName } from "~/lib/providers";
 import {
-	fetchServerSetup,
-	saveServerSetup,
-	clearServerSetup,
+	saveServerKey,
+	deleteServerKey,
+	setDefaultServerKey,
+	fetchServerKeys,
 	useAuth,
 	googleLoginUrl,
+	type StoredKey,
 } from "~/lib/auth";
 import {
 	getSetup,
 	loadPrefs,
 	loadSettings,
-	saveLocalApiKey,
 	saveSettings,
 	setSetup,
 	setupReady,
@@ -48,10 +49,17 @@ function currentReturnTo(): string {
 		: "/settings";
 }
 
+/** Label ramah utk provider (cek PROVIDER_META; fallback ke raw id). */
+function providerLabelSafe(id: string): string {
+	const meta = PROVIDER_META.find((p) => p.provider === id);
+	return meta?.label ?? id;
+}
+
 export default function Settings() {
 	const navigate = useNavigate();
 	const { user, loading: authLoading, refresh: refreshAuth } = useAuth();
 	const [provider, setProvider] = useState<Setup | null>(() => getSetup());
+	const [keys, setKeys] = useState<StoredKey[]>([]);
 	const [connected, setConnected] = useState(() => setupReady(getSetup()));
 	const [status, setStatus] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
@@ -66,7 +74,7 @@ export default function Settings() {
 		voiceUri: "",
 	});
 	const [hydrated, setHydrated] = useState(false);
-	const [editingKey, setEditingKey] = useState(false);
+	const [addingKey, setAddingKey] = useState(false);
 
 	useEffect(() => {
 		const prefs = loadPrefs();
@@ -85,24 +93,26 @@ export default function Settings() {
 		if (hydrated) saveSettings(settings);
 	}, [settings, hydrated]);
 
-	// Setelah auth selesai & login, tarik setup server (provider/model + hasKey).
+	// Setelah auth selesai & login, tarik semua key provider dari server.
 	useEffect(() => {
 		if (authLoading || !user) return;
-		async function loadServer() {
-			const serverSetup = await fetchServerSetup();
-			if (serverSetup) {
+		async function loadKeys() {
+			const serverKeys = await fetchServerKeys();
+			setKeys(serverKeys ?? []);
+			const def = (serverKeys ?? []).find((k) => k.isDefault) ?? (serverKeys ?? [])[0];
+			if (def) {
 				setProvider((p) => ({
 					level: p?.level ?? "intermediate",
-					provider: serverSetup.provider as Setup["provider"],
-					model: serverSetup.model,
-					serverKey: serverSetup.hasKey,
+					provider: def.provider as Setup["provider"],
+					model: def.model,
+					serverKey: true,
 					mode: p?.mode ?? "text",
 				}));
-				setConnected(serverSetup.hasKey);
+				setConnected(true);
 			}
 			setServerSetupLoaded(true);
 		}
-		void loadServer();
+		void loadKeys();
 	}, [authLoading, user]);
 
 	useEffect(() => {
@@ -123,54 +133,47 @@ export default function Settings() {
 		[],
 	);
 
-	// Simpan dari form. Route: login → server; belum login → BYOK lokal.
+	// Simpan key provider ke server (login + validasi server-side). Lalu refresh list & set aktif.
 	async function applyProviderValue(value: ProviderFormValue) {
-		if (user) {
-			const ok = await saveServerSetup({
-				provider: value.provider,
-				model: value.model,
-				apiKey: value.apiKey,
-			});
-			if (!ok) {
-				setStatus("Gagal menyimpan key di server. Coba lagi.");
-				return;
-			}
-			// key tak perlu di-hold di client — pakai relay server.
-			const next: Setup = {
-				level: provider?.level ?? "intermediate",
-				provider: value.provider,
-				model: value.model,
-				serverKey: true,
-				mode: provider?.mode ?? "text",
-			};
-			setSetup(next);
-			setProvider(next);
-			setConnected(true);
-			setEditingKey(false);
-			setStatus(`Tersimpan di akun — key tak perlu diisi lagi. Model: ${value.model}.`);
-			} else {
-			// BYOK lokal
-			if (!value.apiKey) {
-				setStatus("Login atau isi key OpenRouter untuk menyambung.");
-				return;
-			}
-			saveLocalApiKey(value.apiKey);
-			const next: Setup = {
-				level: provider?.level ?? "intermediate",
-				provider: value.provider,
-				model: value.model,
-				apiKey: value.apiKey,
-				mode: provider?.mode ?? "text",
-			};
-			setSetup(next);
-			setProvider(next);
-			setConnected(true);
-			setStatus(`Key disimpan di browser ini (BYOK lokal). Model: ${value.model}.`);
+		if (!user) return;
+		if (!value.apiKey) {
+			setStatus("Masukkan API key untuk menyimpan provider baru.");
+			return;
 		}
+		setBusy(true);
+		const r = await saveServerKey({
+			provider: value.provider,
+			apiKey: value.apiKey,
+			model: value.model,
+			...(value.baseURL ? { baseURL: value.baseURL } : {}),
+		});
+		setBusy(false);
+		if (!r.ok) {
+			setStatus(r.error || "Gagal menyimpan key. Periksa kembali.");
+			return;
+		}
+		const serverKeys = await fetchServerKeys();
+		setKeys(serverKeys ?? []);
+		const next: Setup = {
+			level: provider?.level ?? "intermediate",
+			provider: value.provider,
+			model: value.model,
+			serverKey: true,
+			mode: provider?.mode ?? "text",
+		};
+		setSetup(next);
+		setProvider(next);
+		setConnected(true);
+		setAddingKey(false);
+		setStatus(`Key ${providerLabel(value.provider)} tersimpan & tervalidasi.`);
 	}
 
 	async function testConnection() {
 		if (!provider || !provider.model || busy) return;
+		if (!provider.serverKey) {
+			setStatus("Belum ada key tersimpan. Simpan key provider dulu untuk menguji koneksi.");
+			return;
+		}
 		setBusy(true);
 		setStatus("Testing connection…");
 		try {
@@ -178,7 +181,6 @@ export default function Settings() {
 				{
 					provider: provider.provider,
 					model: provider.model,
-					...(provider.apiKey ? { apiKey: provider.apiKey } : {}),
 				},
 				[{ role: "user", content: "ping" }],
 				{ maxTokens: 1 },
@@ -196,24 +198,48 @@ export default function Settings() {
 	}
 
 	async function signOut() {
-		if (user) await clearServerSetup();
 		setSetup(null);
+		setProvider(null);
+		setKeys([]);
 		setConnected(false);
 		setStatus(null);
 		navigate("/");
 	}
 
-	async function handleClearKey() {
-		if (user) await clearServerSetup();
-		saveLocalApiKey("");
-		setConnected(false);
-		setEditingKey(true);
-		setStatus("Key dihapus. Masukkan key OpenRouter baru untuk menyambung.");
+	async function handleRemoveKey(p: string) {
+		if (!user) return;
+		await deleteServerKey(p);
+		const serverKeys = await fetchServerKeys();
+		setKeys(serverKeys ?? []);
+		// Jika provider aktif dihapus, kosongkan connected.
+		if (provider?.provider === p) {
+			const def = serverKeys?.find((k) => k.isDefault) ?? serverKeys?.[0];
+			if (def) {
+				setProvider((prev) => ({
+					level: prev?.level ?? "intermediate",
+					provider: def.provider as Setup["provider"],
+					model: def.model,
+					serverKey: true,
+					mode: prev?.mode ?? "text",
+				}));
+			} else {
+				setProvider(null);
+				setConnected(false);
+			}
+		}
+		setStatus(`Key ${p} dihapus.`);
+	}
+
+	async function handleMakeDefault(p: string) {
+		if (!user) return;
+		await setDefaultServerKey(p);
+		setKeys((prev) =>
+			prev.map((k) => ({ ...k, isDefault: k.provider === p })),
+		);
 	}
 
 	const activeProviderLabel = provider ? providerLabel(provider.provider) : "—";
-	// Saat editingKey aktif, tampilkan field key lagi biar bisa ganti/hapus key.
-	const hasStoredKey = Boolean(user && provider?.serverKey && !editingKey);
+	const connectedCount = keys.length;
 
 	return (
 		<AppShell active="settings">
@@ -230,89 +256,19 @@ export default function Settings() {
 			</div>
 
 			<section className="mt-6">
-				<SectionTitle>AI provider</SectionTitle>
+				<SectionTitle>AI providers</SectionTitle>
 				<p className="mb-4 mt-1.5 text-sm text-muted">
-					TOLK runs on OpenRouter with your key — login untuk simpan key di server (tanpa
-					input ulang), atau pakai BYOK lokal tanpa akun.
+					Mengelola beberapa API key (BYOK). Key divalidasi lalu disimpan terenkripsi di
+					server TOLK; dipakai server saat chat — tidak pernah dari browser. Login untuk
+					mengelola key.
 				</p>
 
-				<div className="rounded-lg border border-line bg-paper p-6">
-					<div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-						<div>
-							<p className="text-[15px] font-semibold text-ink">Active provider</p>
-							<p className="mt-1 font-mono text-sm text-muted">
-								{provider ? `${activeProviderLabel} · ${provider.model}` : "Belum dikonfigurasi"}
-							</p>
-						</div>
-						{connected ? (
-							<Badge dot="success">
-								{hasStoredKey ? "Server key" : "Connected (local)"}
-							</Badge>
-						) : (
-							<Badge dot="muted">Not connected</Badge>
-						)}
-					</div>
-
-					{hasStoredKey && (
-						<p className="mb-4 rounded-md bg-surface px-3 py-2.5 text-sm text-ink-2">
-							Key tersimpan aman di server untuk {user?.email}. Key tak ditampilkan &
-							tak diupload lagi. Ubah provider/model di bawah; ganti key lagi lewat
-							&quot;Ganti key&quot;.
-						</p>
-					)}
-
-					<ProviderSetupForm
-						initial={
-							provider
-								? {
-										provider: provider.provider,
-										model: provider.model,
-										...(provider.apiKey ? { apiKey: provider.apiKey } : {}),
-									}
-								: null
-						}
-						hasStoredKey={hasStoredKey}
-						onSave={(value) => void applyProviderValue(value)}
-					/>
-					{hasStoredKey && (
-						<div className="mt-3 flex flex-wrap items-center gap-3">
-							<button
-								type="button"
-								onClick={() => {
-									setEditingKey(true);
-									setStatus("Masukkan key OpenRouter baru, lalu simpan.");
-								}}
-								className="text-sm font-semibold text-accent transition hover:text-accent-dark"
-							>
-								Ganti key…
-							</button>
-							<button
-								type="button"
-								onClick={handleClearKey}
-								className="text-sm font-semibold text-danger transition hover:opacity-80"
-							>
-								Hapus key
-							</button>
-						</div>
-					)}
-
-					{status && <p className="mt-3 rounded-md bg-surface px-3 py-2 text-sm text-ink-2">{status}</p>}
-
-					<div className="mt-4 flex flex-wrap gap-3">
-						<Button variant="secondary" onClick={() => void testConnection()} disabled={busy}>
-							{busy ? "Testing…" : "Test Connection"}
-						</Button>
-					</div>
-				</div>
-			</section>
-
-			{!user && !authLoading && (
-				<section className="mt-6">
+				{!user && !authLoading ? (
 					<div className="rounded-lg border border-line bg-paper p-6">
 						<p className="text-[15px] font-semibold text-ink">Simpan key ke akun</p>
 						<p className="mt-1 text-sm text-muted">
-							Login dengan Google untuk menyimpan key OpenRouter secara aman di server —
-							tanpa perlu input ulang di perangkat lain.
+							Login dengan Google untuk menyimpan & mengelola API key secara aman di server —
+							cross-device, tanpa input ulang.
 						</p>
 						<Button
 							to={googleLoginUrl(currentReturnTo())}
@@ -322,8 +278,118 @@ export default function Settings() {
 							Continue with Google
 						</Button>
 					</div>
-				</section>
-			)}
+				) : (
+					<div className="rounded-lg border border-line bg-paper p-6">
+						{/* Active/default provider */}
+						<div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+							<div>
+								<p className="text-[15px] font-semibold text-ink">Active provider</p>
+								<p className="mt-1 font-mono text-sm text-muted">
+									{provider
+										? `${activeProviderLabel} · ${provider.model}`
+										: connectedCount > 0
+											? "Pilih provider default di bawah"
+											: "Belum ada key tersimpan"}
+								</p>
+							</div>
+							{connected ? (
+								<Badge dot="success">
+									{connectedCount} key{connectedCount > 1 ? "s" : ""} tersimpan
+								</Badge>
+							) : (
+								<Badge dot="muted">Not connected</Badge>
+							)}
+						</div>
+
+						{/* Connected providers list */}
+						{keys.length > 0 && (
+							<div className="mb-4 space-y-2.5">
+								<p className="text-sm font-semibold text-ink-2">Connected providers</p>
+								{keys.map((k) => (
+									<div
+										key={k.provider}
+										className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-surface px-3.5 py-3"
+									>
+										<div className="min-w-0">
+											<p className="text-sm font-semibold text-ink">
+												{providerLabelSafe(k.provider)}
+												{k.isDefault && <span className="ml-2 rounded bg-accent/15 px-1.5 py-0.5 text-[11px] font-semibold text-accent">default</span>}
+											</p>
+											<p className="mt-0.5 truncate font-mono text-xs text-muted">
+												{k.keyHint} · {k.model}
+											</p>
+										</div>
+										<div className="flex flex-none items-center gap-3">
+											{!k.isDefault && (
+												<button
+													type="button"
+													onClick={() => void handleMakeDefault(k.provider)}
+													className="text-xs font-semibold text-accent transition hover:text-accent-dark"
+												>
+													Jadikan default
+												</button>
+											)}
+											<button
+												type="button"
+												onClick={() => void handleRemoveKey(k.provider)}
+												className="text-xs font-semibold text-danger transition hover:opacity-80"
+											>
+												Hapus
+											</button>
+										</div>
+									</div>
+								))}
+							</div>
+						)}
+
+						{/* Add/replace key form */}
+						{!addingKey ? (
+							<Button
+								variant="secondary"
+								onClick={() => {
+									setAddingKey(true);
+									setStatus(null);
+								}}
+								className="w-full"
+							>
+								+ Tambah / ganti key provider
+							</Button>
+						) : (
+							<>
+								<div className="mb-3 flex items-center justify-between">
+									<p className="text-sm font-semibold text-ink">Tambah / ganti key</p>
+									<button
+										type="button"
+										onClick={() => setAddingKey(false)}
+										className="text-sm font-semibold text-muted transition hover:text-ink"
+									>
+										Batal
+									</button>
+								</div>
+								<ProviderSetupForm
+									key={provider?.provider ?? "new"}
+									initial={
+										provider
+											? { provider: provider.provider, model: provider.model }
+											: null
+									}
+									onSave={(value) => void applyProviderValue(value)}
+								/>
+							</>
+						)}
+
+						{status && (
+							<p className="mt-3 rounded-md bg-surface px-3 py-2 text-sm text-ink-2">{status}</p>
+						)}
+
+						<div className="mt-4 flex flex-wrap gap-3">
+							<Button variant="secondary" onClick={() => void testConnection()} disabled={busy || !connected}>
+								{busy ? "Testing…" : "Test Connection"}
+							</Button>
+						</div>
+					</div>
+				)}
+			</section>
 
 			<section className="mt-8">
 				<SectionTitle>Voice</SectionTitle>
@@ -447,7 +513,8 @@ export default function Settings() {
 						<div className="border-b border-line-soft p-5">
 							<p className="text-sm font-semibold text-ink">Local profile</p>
 							<p className="mt-0.5 text-sm text-muted">
-								Belum login. Data & key BYOK hanya tersimpan di perangkat ini.
+								Belum login. Sign in untuk mengelola API key & menyimpan progress
+								cross-device.
 							</p>
 						</div>
 					)}
@@ -460,7 +527,7 @@ export default function Settings() {
 							<div>
 								<p className="text-sm font-semibold text-danger">Sign out</p>
 								<p className="mt-0.5 text-sm text-muted">
-									Hapus key server (jika ada) & sesi dari perangkat ini.
+									Keluar dari sesi di perangkat ini. API key tetap tersimpan di akun.
 								</p>
 							</div>
 						</button>
@@ -472,22 +539,6 @@ export default function Settings() {
 							Continue with Google
 						</Button>
 					)}
-					{!user && (
-						<div className="px-5 pb-4">
-							<button
-								type="button"
-								onClick={() => {
-									setSetup(null);
-									saveLocalApiKey("");
-									setConnected(false);
-									setStatus("Key lokal dihapus.");
-								}}
-								className="text-sm font-semibold text-danger"
-							>
-								Hapus key lokal
-							</button>
-						</div>
-					)}
 				</div>
 			</section>
 
@@ -496,7 +547,8 @@ export default function Settings() {
 					<div>
 						<p className="font-mono text-[13px] text-muted">TOLK v0.2.0</p>
 						<p className="mt-1 text-sm text-muted">
-							Login = key server (cross-device). Tanpa login = BYOK lokal.
+							BYOK multi-provider — key disimpan terenkripsi di server, dipakai server
+							saat chat.
 						</p>
 					</div>
 					<Button to="/" variant="secondary">

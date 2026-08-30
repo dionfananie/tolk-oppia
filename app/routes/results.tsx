@@ -106,7 +106,6 @@ function ResultsView({
 			provider: session.provider,
 			model: session.model,
 			...(setup?.serverKey ? { serverKey: true } : {}),
-			...(setup?.apiKey ? { apiKey: setup.apiKey } : {}),
 			mode: setup?.mode ?? "text",
 		});
 		navigate(`/practice/${session.scenarioId}`);

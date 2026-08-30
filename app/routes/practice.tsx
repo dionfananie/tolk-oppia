@@ -326,7 +326,7 @@ export default function Practice() {
 	const category = CATEGORIES.find((c) => c.id === scenario.category)?.label ?? "Practice";
 	const aiLabel = effectiveScenario.aiRole;
 	const hasConversation = messages.length > 0;
-	const showConfigure = !setup?.apiKey && !hasConversation;
+	const showConfigure = !setupReady(setup) && !hasConversation;
 
 	return (
 		<div className="flex h-dvh flex-col overflow-hidden bg-paper text-ink">

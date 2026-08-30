@@ -6,13 +6,15 @@ import {
 	labelForModel,
 	type ProviderName,
 } from "~/lib/providers";
+import { testServerKey } from "~/lib/auth";
 import { inputClass, selectClass } from "~/lib/ui";
 
 export type ProviderFormValue = {
 	provider: ProviderName;
 	model: string;
-	/** OpenRouter key — kosong artinya pakai key yang sudah tersimpan (server Bila login, atau BYOK lokal). */
 	apiKey?: string;
+	/** Base URL custom (optional). Kosong → pakai default provider. */
+	baseURL?: string;
 };
 
 type Props = {
@@ -20,13 +22,9 @@ type Props = {
 	onSave: (value: ProviderFormValue) => void;
 	submitLabel?: string;
 	compact?: boolean;
-	/** true = key tak perlu diisi lagi (sudah tersimpan server-side / lokal). Sembunyikan field key. */
+	/** true = key sudah tersimpan di server → sembunyikan field key & gapai tanpa re-input. */
 	hasStoredKey?: boolean;
 };
-
-function sortedModels(provider: ProviderName) {
-	return getModels(provider);
-}
 
 export function ProviderSetupForm({
 	initial,
@@ -46,14 +44,17 @@ export function ProviderSetupForm({
 	);
 	const [useCustom, setUseCustom] = useState(Boolean(customModel));
 	const [apiKey, setApiKey] = useState(initial?.apiKey ?? "");
+	const [baseURL, setBaseURL] = useState(initial?.baseURL ?? "");
+	const [testing, setTesting] = useState(false);
+	const [testMsg, setTestMsg] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
 	function changeProvider(next: ProviderName) {
 		setProvider(next);
-		const def = defaultModel(next);
-		setModel(def);
+		setModel(defaultModel(next));
 		setUseCustom(false);
 		setCustomModel("");
+		setTestMsg(null);
 	}
 
 	function selectModel(id: string) {
@@ -69,6 +70,25 @@ export function ProviderSetupForm({
 
 	const finalModel = useCustom ? customModel.trim() : model;
 
+	async function handleTest() {
+		if (!finalModel || !apiKey.trim()) {
+			setTestMsg(null);
+			setError("Isi model & API key dulu untuk menguji koneksi.");
+			return;
+		}
+		setError(null);
+		setTesting(true);
+		setTestMsg(null);
+		const r = await testServerKey({
+			provider,
+			apiKey: apiKey.trim(),
+			model: finalModel,
+			...(baseURL.trim() ? { baseURL: baseURL.trim() } : {}),
+		});
+		setTesting(false);
+		setTestMsg(r.valid ? "✓ Koneksi berhasil. Key valid." : r.error || "Koneksi gagal.");
+	}
+
 	function submit(event: React.FormEvent) {
 		event.preventDefault();
 		if (!finalModel) {
@@ -76,7 +96,7 @@ export function ProviderSetupForm({
 			return;
 		}
 		if (!hasStoredKey && !apiKey.trim()) {
-			setError("Masukkan key OpenRouter untuk menyambung (atau login dulu untuk pakai key tersimpan).");
+			setError("Masukkan API key provider (atau login & pakai key yang sudah tersimpan).");
 			return;
 		}
 		setError(null);
@@ -84,6 +104,7 @@ export function ProviderSetupForm({
 			provider,
 			model: finalModel,
 			...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
+			...(baseURL.trim() ? { baseURL: baseURL.trim() } : {}),
 		});
 	}
 
@@ -122,7 +143,7 @@ export function ProviderSetupForm({
 						spellCheck={false}
 						value={customModel}
 						onChange={(e) => setCustomModel(e.target.value)}
-						placeholder="model vendor/nama (cth: deepseek/deepseek-v4-flash)"
+						placeholder="id model asli provider"
 						className={inputClass}
 					/>
 				) : (
@@ -135,7 +156,7 @@ export function ProviderSetupForm({
 						<option value="" disabled>
 							Pilih model
 						</option>
-						{sortedModels(provider).map((m) => (
+						{getModels(provider).map((m) => (
 							<option key={m.id} value={m.id}>
 								{labelForModel(m.id) || m.label}
 							</option>
@@ -143,15 +164,12 @@ export function ProviderSetupForm({
 						<option value="__custom__">Tulis model custom…</option>
 					</select>
 				)}
-				<p className="text-sm text-muted">
-					Model via OpenRouter. Pilih preset atau tulis id custom.
-				</p>
 			</div>
 
 			{!hasStoredKey && (
 				<div className="flex flex-col gap-[7px]">
 					<label htmlFor="pv-key" className="text-sm font-medium text-ink">
-						API key <span className="text-muted">(OpenRouter)</span>
+						API key
 					</label>
 					<input
 						id="pv-key"
@@ -160,14 +178,57 @@ export function ProviderSetupForm({
 						spellCheck={false}
 						value={apiKey}
 						onChange={(e) => setApiKey(e.target.value)}
-						placeholder="sk-or-v1-…"
+						placeholder="Masukkan key provider…"
 						className={inputClass}
 					/>
 					<p className="text-sm text-muted">
-						Login untuk simpan key di server (tanpa perlu input ulang). Tanpa login, key
-						disimpan di browser (BYOK lokal).
+						Key dikirim ke TOLK server (HTTPS) untuk divalidasi, lalu disimpan terenkripsi.
+						Key tidak akan digunakan untuk request dari browser.
 					</p>
 				</div>
+			)}
+
+			{!hasStoredKey && (
+				<div className="flex flex-col gap-[7px]">
+					<label htmlFor="pv-base" className="text-sm font-medium text-ink">
+						Base URL <span className="text-muted">(opsional)</span>
+					</label>
+					<input
+						id="pv-base"
+						type="text"
+						autoComplete="off"
+						spellCheck={false}
+						value={baseURL}
+						onChange={(e) => setBaseURL(e.target.value)}
+						placeholder="https://… pakai default provider bila kosong"
+						className={inputClass}
+					/>
+					<p className="text-sm text-muted">
+						Kosongkan untuk memakai endpoint default provider. Isi hanya untuk gateway/endpoint
+						kustom (https).
+					</p>
+				</div>
+			)}
+
+			{!hasStoredKey && (
+				<button
+					type="button"
+					onClick={() => void handleTest()}
+					disabled={testing || !apiKey.trim()}
+					className="w-full rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink-2 transition hover:bg-surface-strong disabled:opacity-50"
+				>
+					{testing ? "Testing…" : "Test Connection"}
+				</button>
+			)}
+
+			{testMsg && (
+				<p
+					className={`rounded-md px-3 py-2 text-sm ${
+						testMsg.startsWith("✓") ? "bg-success/10 text-success" : "bg-danger/10 text-danger"
+					}`}
+				>
+					{testMsg}
+				</p>
 			)}
 
 			{error && <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
