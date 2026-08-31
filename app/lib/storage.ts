@@ -57,7 +57,7 @@ export type Settings = {
 };
 
 const DEFAULT_SETTINGS: Settings = {
-	captions: true,
+	captions: false,
 	autoPlay: true,
 	promptStyle: "encouraging",
 	speechRate: "normal",

@@ -74,7 +74,7 @@ export default function Settings() {
 	const [mounted, setMounted] = useState(false);
 	const [serverSetupLoaded, setServerSetupLoaded] = useState(false);
 	const [settings, setSettings] = useState({
-		captions: true,
+		captions: false,
 		autoPlay: true,
 		promptStyle: "encouraging" as "direct" | "encouraging",
 		speechRate: "normal" as "slow" | "normal" | "fast",

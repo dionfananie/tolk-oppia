@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import type { Route } from "./+types/practice";
 import { CATEGORIES, getScenario } from "~/data/scenarios";
+import { fetchServerKeys, useAuth } from "~/lib/auth";
 import type { ChatMessage } from "~/lib/providers";
 import { openConversation, respond } from "~/lib/engine";
 import { generateFeedback, overallScore } from "~/lib/feedback";
@@ -26,9 +27,7 @@ import {
 	useSTT,
 	useTTS,
 } from "~/lib/speech";
-import { ProviderSetupForm } from "~/components/ProviderSetupForm";
 import { Orb, type OrbState } from "~/components/Orb";
-import { Segmented } from "~/components/Segmented";
 import { Switch } from "~/components/Switch";
 import { TypingIndicator } from "~/components/ChatBubble";
 import { IconArrowLeft, IconMic, IconReplay, IconSend } from "~/components/icons";
@@ -50,15 +49,17 @@ export default function Practice() {
 	const { scenarioId } = useParams();
 	const navigate = useNavigate();
 	const scenario = scenarioId ? getScenario(scenarioId) : undefined;
+	const { user, loading: authLoading } = useAuth();
 
 	const [setup, setSetupState] = useState<Setup | null>(() => getSetup());
+	const [providerLoading, setProviderLoading] = useState(true);
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [draft, setDraft] = useState<SessionDraft | null>(null);
 	const [mode, setMode] = useState<"voice" | "text">("text");
 	const [input, setInput] = useState("");
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [showCaptions, setShowCaptions] = useState(true);
+	const [showCaptions, setShowCaptions] = useState(false);
 	const [orbState, setOrbState] = useState<OrbState>("idle");
 	const [listening, setListening] = useState(false);
 	const [seconds, setSeconds] = useState(0);
@@ -104,6 +105,69 @@ export default function Practice() {
 				(isSpeechSupported() ? "voice" : "text"),
 		);
 	}, []);
+
+	useEffect(() => {
+		let cancelled = false;
+
+		function useUnconfiguredFallback() {
+			const fallback = setupFromPrefs();
+			setSetup(fallback);
+			setSetupState(fallback);
+		}
+
+		if (authLoading) {
+			setProviderLoading(true);
+			return () => {
+				cancelled = true;
+			};
+		}
+
+		if (!user) {
+			useUnconfiguredFallback();
+			setProviderLoading(false);
+			return () => {
+				cancelled = true;
+			};
+		}
+
+		setProviderLoading(true);
+		async function loadServerSetup() {
+			try {
+				const keys = await fetchServerKeys();
+				if (cancelled) return;
+				const defaultKey = keys?.find((key) => key.isDefault) ?? keys?.[0];
+				if (!defaultKey) {
+					useUnconfiguredFallback();
+					return;
+				}
+
+				const current = getSetup() ?? setupFromPrefs();
+				const next: Setup = {
+					level: current?.level ?? "intermediate",
+					provider: defaultKey.provider as Setup["provider"],
+					model: defaultKey.model,
+					serverKey: true,
+					mode:
+						current?.mode ??
+						loadDraft()?.mode ??
+						loadPrefs()?.mode ??
+						(isSpeechSupported() ? "voice" : "text"),
+				};
+				setSetup(next);
+				setSetupState(next);
+				setMode(next.mode ?? "text");
+			} catch {
+				if (!cancelled) useUnconfiguredFallback();
+			} finally {
+				if (!cancelled) setProviderLoading(false);
+			}
+		}
+
+		void loadServerSetup();
+		return () => {
+			cancelled = true;
+		};
+	}, [authLoading, user]);
 
 	useEffect(() => {
 		orbRef.current = orbState;
@@ -162,10 +226,10 @@ export default function Practice() {
 	);
 
 	useEffect(() => {
-		if (setup && setupReady(setup) && messages.length === 0 && !openedRef.current && !busy) {
+		if (!providerLoading && setup && setupReady(setup) && messages.length === 0 && !openedRef.current && !busy) {
 			void begin(setup);
 		}
-	}, [setup, messages, begin, busy]);
+	}, [providerLoading, setup, messages, begin, busy]);
 
 	useEffect(() => {
 		if (!started) return;
@@ -176,17 +240,6 @@ export default function Practice() {
 	useEffect(() => {
 		transcriptRef.current?.scrollTo({ top: transcriptRef.current.scrollHeight, behavior: "smooth" });
 	}, [messages, busy, showCaptions]);
-
-	function saveSetupFromForm(partial: Omit<Setup, "level">) {
-		if (!scenario) return;
-		const next: Setup = {
-			...partial,
-			level: setup?.level ?? setupFromPrefs()?.level ?? "intermediate",
-			mode,
-		};
-		setSetup(next);
-		setSetupState(next);
-	}
 
 	function changeMode(next: "voice" | "text") {
 		setMode(next);
@@ -377,19 +430,24 @@ export default function Practice() {
 				</button>
 			</header>
 
-			{showConfigure ? (
+			{providerLoading ? (
+				<main className="flex flex-1 items-center justify-center px-4 pb-[10vh]" aria-live="polite">
+					<p className="text-sm text-muted">Checking provider connection…</p>
+				</main>
+			) : showConfigure ? (
 				<main className="flex flex-1 items-center justify-center px-4 pb-[10vh]">
-					<div className="w-full max-w-md rounded-lg border border-line bg-paper p-6">
-						<h1 className="font-display text-xl font-medium tracking-wide text-ink">
-							Connect your AI provider
-						</h1>
-						<p className="mt-1 text-sm leading-relaxed text-muted">
-							Add your DeepSeek or GLM API key to start the conversation. The key stays in this
-							browser session and is never saved.
+					<div className="w-full max-w-md text-center">
+						<h1 className="font-display text-xl font-medium tracking-wide text-ink">Provider belum terhubung</h1>
+						<p className="mt-2 text-sm leading-relaxed text-muted">
+							Hubungkan provider dari Settings, lalu kembali untuk memulai percakapan.
 						</p>
-						<div className="mt-6">
-							<ProviderSetupForm initial={setup} onSave={saveSetupFromForm} />
-						</div>
+						<button
+							type="button"
+							onClick={() => navigate("/settings")}
+							className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-paper transition-colors hover:bg-accent-dark focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-paper focus:outline-none"
+						>
+							Open Settings
+						</button>
 					</div>
 				</main>
 			) : (
@@ -404,7 +462,7 @@ export default function Practice() {
 									name={aiLabel}
 									sub="Your coach"
 									state={orbState}
-									className={hasConversation ? "size-[124px]" : "size-[clamp(140px,20vw,168px)]"}
+									className="size-[clamp(140px,20vw,168px)]"
 								/>
 							</div>
 							<div className="mt-5 max-w-[560px] text-center" aria-live="polite">

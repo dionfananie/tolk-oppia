@@ -4,8 +4,7 @@ import type { Route } from "./+types/practice-setup";
 import { AppShell } from "~/components/AppShell";
 import { Button } from "~/components/Button";
 import { Segmented } from "~/components/Segmented";
-import { ProviderSetupForm, type ProviderFormValue } from "~/components/ProviderSetupForm";
-import { saveServerKey, useAuth, fetchServerKeys, googleLoginUrl } from "~/lib/auth";
+import { useAuth, fetchServerKeys } from "~/lib/auth";
 import { getScenario, type EnglishLevel } from "~/data/scenarios";
 import { isSpeechSupported } from "~/lib/speech-core";
 import {
@@ -59,6 +58,7 @@ export default function PracticeSetup() {
 	});
 	const [provider, setProvider] = useState<Setup | null>(existing);
 	const [configured, setConfigured] = useState(setupReady(existing));
+	const [providerLoading, setProviderLoading] = useState(true);
 
 	useEffect(() => {
 		if (!scenario) navigate("/practice", { replace: true });
@@ -78,23 +78,52 @@ export default function PracticeSetup() {
 
 	// Tarik key server saat login — agar tak perlu input key lagi utk mulai practice.
 	useEffect(() => {
-		if (authLoading || !user) return;
+		if (authLoading) {
+			setProviderLoading(true);
+			return;
+		}
+
+		let cancelled = false;
+		function clearUnavailableSetup() {
+			setProvider(null);
+			setConfigured(false);
+			setSetup(null);
+		}
+
+		if (!user) {
+			clearUnavailableSetup();
+			setProviderLoading(false);
+			return () => {
+				cancelled = true;
+			};
+		}
+
+		setProviderLoading(true);
+		clearUnavailableSetup();
 		async function loadServerSetup() {
-			const keys = await fetchServerKeys();
-			if (keys && keys.length > 0) {
-				// Ambil default pertama (atau is_default pertama). Provider/model dari key.
-				const def = keys.find((k) => k.isDefault) ?? keys[0];
-				setProvider((prev) => ({
-					level: prev?.level ?? difficulty,
+			try {
+				const keys = await fetchServerKeys();
+				if (cancelled) return;
+				const def = keys?.find((key) => key.isDefault) ?? keys?.[0];
+				if (!def) return;
+
+				setProvider({
+					level: difficulty,
 					provider: def.provider as Setup["provider"],
 					model: def.model,
 					serverKey: true,
-					mode: prev?.mode ?? mode,
-				}));
+					mode,
+				});
 				setConfigured(true);
+			} finally {
+				if (!cancelled) setProviderLoading(false);
 			}
 		}
+
 		void loadServerSetup();
+		return () => {
+			cancelled = true;
+		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [authLoading, user]);
 
@@ -218,70 +247,23 @@ export default function PracticeSetup() {
 						</p>
 					</div>
 
-					{!configured && (
-						<div className="mt-6 border-t border-line-soft pt-6">
-							<p className="text-sm font-semibold text-ink">Connect your AI provider</p>
-							<p className="mt-1 text-sm text-muted">
-								Pilih provider, masukkan API key untuk disimpan aman di akun (server-proxy).
-								Key dipakai server saat chat — tidak pernah dipakai dari browser.
-							</p>
-							<div className="mt-4">
-								{!user && !authLoading ? (
-									<Button
-										to={googleLoginUrl(`/practice/${scenarioId}/setup`)}
-										variant="secondary"
-										className="w-full"
-									>
-										Login dengan Google untuk menghubungkan key
-									</Button>
-								) : (
-									<ProviderSetupForm
-										compact
-										initial={
-											provider
-												? {
-														provider: provider.provider,
-														model: provider.model,
-													}
-												: null
-										}
-										onSave={async (value) => {
-											if (!user) return;
-											const r = value.apiKey
-												? await saveServerKey({
-														provider: value.provider,
-														apiKey: value.apiKey,
-														model: value.model,
-														...(value.baseURL ? { baseURL: value.baseURL } : {}),
-													})
-												: { ok: true };
-											if (!r.ok) {
-												// key invalid — jangan set configured
-												return;
-											}
-											setProvider((prev) => ({
-												level: prev?.level ?? difficulty,
-												provider: value.provider,
-												model: value.model,
-												serverKey: true,
-												mode: prev?.mode ?? mode,
-											}));
-											setConfigured(true);
-										}}
-									/>
-								)}
-							</div>
-						</div>
-					)}
-
 					<Button
 						onClick={start}
-						disabled={!configured}
+						disabled={providerLoading || !configured}
 						size="lg"
 						className="mt-6 w-full"
 					>
-						{configured ? "Start Conversation" : "Connect a provider to continue"}
+						{providerLoading
+							? "Checking provider connection…"
+							: configured
+								? "Start Conversation"
+								: "Connect a provider to continue"}
 					</Button>
+					{!configured && !providerLoading && (
+						<Button to="/settings" variant="secondary" size="lg" className="mt-3 w-full">
+							Open Settings
+						</Button>
+					)}
 					<p className="mt-3 text-center text-sm text-muted">
 						<Link to={`/practice/${scenario.id}`} className="font-semibold text-accent transition hover:text-accent-dark">
 							Skip setup and start directly
