@@ -112,14 +112,20 @@ export default function Practice() {
 	function autoSpeak(text: string) {
 		if (!tts.controller.isSupported) return;
 		const settings = loadSettings();
-		setOrbState("speaking");
 		void tts.controller.speak(text, {
 			rate: rateFromSetting(settings.speechRate),
-			onEnd: () => {
-				if (!listeningRef.current) setOrbState("idle");
-			},
 		});
 	}
+
+	useEffect(() => {
+		if (tts.controller.isSpeaking) {
+			setOrbState("speaking");
+			return;
+		}
+		if (orbRef.current === "speaking") {
+			setOrbState(listeningRef.current ? "listening" : "idle");
+		}
+	}, [tts.controller.isSpeaking]);
 
 	const begin = useCallback(
 		async (config: Setup) => {
@@ -130,7 +136,7 @@ export default function Practice() {
 			clearDraft();
 			setBusy(true);
 			setError(null);
-			setOrbState("speaking");
+			setOrbState("processing");
 			setCaptionText("Your coach is saying hello…");
 			try {
 				const opening = await openConversation(
