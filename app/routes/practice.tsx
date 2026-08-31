@@ -100,9 +100,9 @@ export default function Practice() {
 		setDraft(loadDraft());
 		setMode(
 			getSetup()?.mode ??
-				loadDraft()?.mode ??
-				loadPrefs()?.mode ??
-				(isSpeechSupported() ? "voice" : "text"),
+			loadDraft()?.mode ??
+			loadPrefs()?.mode ??
+			(isSpeechSupported() ? "voice" : "text"),
 		);
 	}, []);
 
@@ -434,22 +434,6 @@ export default function Practice() {
 				<main className="flex flex-1 items-center justify-center px-4 pb-[10vh]" aria-live="polite">
 					<p className="text-sm text-muted">Checking provider connection…</p>
 				</main>
-			) : showConfigure ? (
-				<main className="flex flex-1 items-center justify-center px-4 pb-[10vh]">
-					<div className="w-full max-w-md text-center">
-						<h1 className="font-display text-xl font-medium tracking-wide text-ink">Provider belum terhubung</h1>
-						<p className="mt-2 text-sm leading-relaxed text-muted">
-							Hubungkan provider dari Settings, lalu kembali untuk memulai percakapan.
-						</p>
-						<button
-							type="button"
-							onClick={() => navigate("/settings")}
-							className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-paper transition-colors hover:bg-accent-dark focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-paper focus:outline-none"
-						>
-							Open Settings
-						</button>
-					</div>
-				</main>
 			) : (
 				<div className="flex min-h-0 flex-1 flex-col">
 					<div className="mx-auto flex w-full max-w-[720px] min-h-0 flex-1 flex-col px-4 sm:px-6">
@@ -488,8 +472,8 @@ export default function Practice() {
 										>
 											<div
 												className={`max-w-[85%] rounded-lg px-3.5 py-2.5 text-sm leading-[1.45] ${message.role === "user"
-														? "bg-accent text-paper"
-														: "border border-line-soft bg-paper text-ink"
+													? "bg-accent text-paper"
+													: "border border-line-soft bg-paper text-ink"
 													}`}
 											>
 												{message.content}
