@@ -96,7 +96,6 @@ export default function Practice() {
 
 	useEffect(() => {
 		if (!getSetup()) setSetupState(setupFromPrefs());
-		setShowCaptions(loadSettings().captions);
 		setDraft(loadDraft());
 		setMode(
 			getSetup()?.mode ??
@@ -403,7 +402,7 @@ export default function Practice() {
 					<p className="truncate font-display text-[17px] font-semibold tracking-[-0.01em] text-ink">
 						{scenario.title}
 					</p>
-					<p className="truncate text-[13px] text-muted">You · {aiLabel}</p>
+					<p className="truncate text-[13px] text-muted">You · {scenario.userRole}</p>
 				</div>
 				<span className="hidden font-mono text-sm font-semibold text-ink-2 sm:block">
 					{formatClock(seconds)}
@@ -435,31 +434,40 @@ export default function Practice() {
 					<p className="text-sm text-muted">Checking provider connection…</p>
 				</main>
 			) : (
-				<div className="flex min-h-0 flex-1 flex-col">
+				<div className="flex min-h-0 flex-1 flex-col bg-surface/40">
 					<div className="mx-auto flex w-full max-w-[720px] min-h-0 flex-1 flex-col px-4 sm:px-6">
-						<section className="flex flex-none flex-col items-center pt-4">
-							<p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-muted" aria-live="polite">
-								{STATE_LABELS[orbState]}
-							</p>
-							<div className="mt-5 grid place-items-center">
-								<Orb
-									name={aiLabel}
-									sub="Your coach"
-									state={orbState}
-									className="size-[clamp(140px,20vw,168px)]"
-								/>
-							</div>
-							<div className="mt-5 max-w-[560px] text-center" aria-live="polite">
-								<p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-muted">
-									{aiLabel}
+						<section
+							className={`flex flex-col items-center ${hasConversation ? "flex-none pt-4" : "min-h-0 flex-1 overflow-y-auto py-6"
+								}`}
+						>
+							<div className="my-auto flex w-full max-w-[520px] flex-col items-center rounded-[2rem] px-6 py-8 sm:px-10 sm:py-10">
+								<p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-muted" aria-live="polite">
+									{STATE_LABELS[orbState]}
 								</p>
-								<p className="mt-1.5 font-display text-[clamp(17px,2.2vw,20px)] font-semibold leading-[1.4] tracking-[-0.012em] text-ink">
-									{captionText}
-								</p>
+								<div className="mt-5 grid place-items-center">
+									<Orb
+										name={aiLabel}
+										sub="Your coach"
+										state={orbState}
+										className={
+											hasConversation
+												? "size-[clamp(112px,16vw,140px)]"
+												: "size-[clamp(140px,20vw,168px)]"
+										}
+									/>
+								</div>
+								<div className="mt-5 max-w-[480px] text-center" aria-live="polite">
+									<p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-muted">
+										{aiLabel}
+									</p>
+									<p className="mt-1.5 font-display text-[clamp(17px,2.2vw,20px)] font-semibold leading-[1.4] tracking-[-0.012em] text-ink">
+										{captionText}
+									</p>
+								</div>
 							</div>
 						</section>
 
-						{showCaptions && (
+						{showCaptions && hasConversation && (
 							<div
 								ref={transcriptRef}
 								className="mt-5 min-h-0 flex-1 overflow-y-auto rounded-lg border border-line-soft bg-surface/40 p-3"
@@ -490,7 +498,9 @@ export default function Practice() {
 							</div>
 						)}
 
-						<footer className="flex flex-none flex-col gap-3 py-4">
+						{hasConversation && !showCaptions && <div className="min-h-0 flex-1" />}
+
+						<footer className="flex-none pb-4 pt-2">
 							{!voiceSupported && (
 								<p className="rounded-md bg-surface px-3 py-2 text-center text-sm text-muted">
 									Voice needs Chrome, Edge, or Safari. Microphone tak tersedia — periksa izin

@@ -39,7 +39,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 			</head>
 			<body>
 				{children}
-				<footer className="border-t border-border/60 py-6 text-center text-xs text-muted">
+				<footer className="border-t border-border/40 py-6 text-center text-xs text-muted">
 					© {new Date().getFullYear()} Oppia World. All Rights Reserved.
 				</footer>
 				<ScrollRestoration />

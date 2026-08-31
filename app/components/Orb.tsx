@@ -48,9 +48,8 @@ export function Orb({ name, sub, state, className = "size-[clamp(150px,22vw,184p
 					/>
 				))}
 				<motion.div
-					className={`relative z-10 grid size-full place-items-center overflow-hidden rounded-full bg-primary text-primary-content ${
-						state === "error" ? "shadow-[0_0_0_3px_color-mix(in_oklab,#ef5b5b_55%,transparent)]" : ""
-					}`}
+					className={`relative z-10 grid size-full place-items-center overflow-hidden rounded-full bg-primary text-primary-content ${state === "error" ? "shadow-[0_0_0_3px_color-mix(in_oklab,#ef5b5b_55%,transparent)]" : ""
+						}`}
 					animate={{ scale: motionSpec.scale }}
 					transition={{
 						duration: motionSpec.duration,
@@ -60,13 +59,8 @@ export function Orb({ name, sub, state, className = "size-[clamp(150px,22vw,184p
 				>
 					<div className="grid place-items-center gap-0.5">
 						<span className="px-4 text-center font-display text-lg font-medium tracking-[0.04em]">
-							{name}
+							{sub}
 						</span>
-						{sub && (
-							<span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] opacity-70">
-								{sub}
-							</span>
-						)}
 					</div>
 				</motion.div>
 			</div>
