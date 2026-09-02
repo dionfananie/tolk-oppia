@@ -166,7 +166,7 @@ export default function Settings() {
 	async function applyProviderValue(value: ProviderFormValue) {
 		if (!user) return;
 		if (!value.apiKey) {
-			setStatus("Masukkan API key untuk menyimpan provider baru.");
+			setStatus("Enter an API key to save a new provider.");
 			return;
 		}
 		setBusy(true);
@@ -178,7 +178,7 @@ export default function Settings() {
 		});
 		setBusy(false);
 		if (!r.ok) {
-			setStatus(r.error || "Gagal menyimpan key. Periksa kembali.");
+			setStatus(r.error || "Couldn't save the key. Check it and try again.");
 			return;
 		}
 		const serverKeys = await fetchServerKeys();
@@ -194,13 +194,13 @@ export default function Settings() {
 		setProvider(next);
 		setConnected(true);
 		setAddingKey(false);
-		setStatus(`Key ${providerLabel(value.provider)} tersimpan & tervalidasi.`);
+		setStatus(`${providerLabel(value.provider)} key saved and validated.`);
 	}
 
 	async function testConnection() {
 		if (!provider || !provider.model || busy) return;
 		if (!provider.serverKey) {
-			setStatus("Belum ada key tersimpan. Simpan key provider dulu untuk menguji koneksi.");
+			setStatus("No key saved yet. Save a provider key first to test the connection.");
 			return;
 		}
 		setBusy(true);
@@ -228,11 +228,11 @@ export default function Settings() {
 
 	async function handleSaveDeepgramKey() {
 		if (!user) {
-			setDgKeyMsg("Login dulu untuk menyimpan key Deepgram.");
+			setDgKeyMsg("Sign in first to save a Deepgram key.");
 			return;
 		}
 		if (!dgKey.trim()) {
-			setDgKeyMsg("Masukkan API key Deepgram.");
+			setDgKeyMsg("Enter your Deepgram API key.");
 			return;
 		}
 		setDgKeyBusy(true);
@@ -240,20 +240,20 @@ export default function Settings() {
 		const r = await saveServerKey({ provider: "deepgram", apiKey: dgKey.trim(), model: "" });
 		setDgKeyBusy(false);
 		if (!r.ok) {
-			setDgKeyMsg(r.error || "Gagal menyimpan key Deepgram. Periksa kembali.");
+			setDgKeyMsg(r.error || "Couldn't save the Deepgram key. Check it and try again.");
 			return;
 		}
 		setDgKey("");
 		const ok = await fetchHasDeepgramKey();
 		setDgHasKey(ok);
-		setDgKeyMsg("Key Deepgram tersimpan & tervalidasi.");
+		setDgKeyMsg("Deepgram key saved and validated.");
 	}
 
 	async function handleRemoveDeepgramKey() {
 		if (!user) return;
 		await deleteServerKey("deepgram");
 		setDgHasKey(false);
-		setDgKeyMsg("Key Deepgram dihapus.");
+		setDgKeyMsg("Deepgram key removed.");
 	}
 
 	async function signOut() {
@@ -286,7 +286,7 @@ export default function Settings() {
 				setConnected(false);
 			}
 		}
-		setStatus(`Key ${p} dihapus.`);
+		setStatus(`${p} key removed.`);
 	}
 
 	async function handleMakeDefault(p: string) {
@@ -297,7 +297,7 @@ export default function Settings() {
 		);
 	}
 
-	const activeProviderLabel = provider ? providerLabel(provider.provider) : "—";
+	const activeProviderLabel = provider ? providerLabel(provider.provider) : "None";
 	const connectedCount = keys.length;
 
 	return (
@@ -317,17 +317,17 @@ export default function Settings() {
 			<section className="mt-6">
 				<SectionTitle>AI providers</SectionTitle>
 				<p className="mb-4 mt-1.5 text-sm text-muted">
-					Mengelola beberapa API key (BYOK). Key divalidasi lalu disimpan terenkripsi di
-					server TOLK; dipakai server saat chat — tidak pernah dari browser. Login untuk
-					mengelola key.
+					Manage multiple API keys (BYOK). Keys are validated and stored encrypted on the
+					TOLK server, and used server-side for chat, never from your browser. Sign in to
+					manage your keys.
 				</p>
 
 				{!user && !authLoading ? (
 					<div className="rounded-lg border border-line bg-paper p-6">
-						<p className="text-[15px] font-semibold text-ink">Simpan key ke akun</p>
+						<p className="text-[15px] font-semibold text-ink">Save keys to your account</p>
 						<p className="mt-1 text-sm text-muted">
-							Login dengan Google untuk menyimpan & mengelola API key secara aman di server —
-							cross-device, tanpa input ulang.
+							Sign in with Google to store and manage API keys securely on the server.
+							They follow you to every device, no re-entering.
 						</p>
 						<Button
 							to={googleLoginUrl(currentReturnTo())}
@@ -347,13 +347,13 @@ export default function Settings() {
 									{provider
 										? `${activeProviderLabel} · ${provider.model}`
 										: connectedCount > 0
-											? "Pilih provider default di bawah"
-											: "Belum ada key tersimpan"}
+											? "Pick a default provider below"
+											: "No key saved yet"}
 								</p>
 							</div>
 							{connected ? (
 								<Badge dot="success">
-									{connectedCount} key{connectedCount > 1 ? "s" : ""} tersimpan
+									{connectedCount} key{connectedCount > 1 ? "s" : ""} saved
 								</Badge>
 							) : (
 								<Badge dot="muted">Not connected</Badge>
@@ -382,10 +382,10 @@ export default function Settings() {
 											{!k.isDefault && (
 												<button
 													type="button"
-													onClick={() => void handleMakeDefault(k.provider)}
-													className="text-xs font-semibold text-accent transition hover:text-accent-dark"
-												>
-													Jadikan default
+												onClick={() => void handleMakeDefault(k.provider)}
+												className="text-xs font-semibold text-accent transition hover:text-accent-dark"
+											>
+												Make default
 												</button>
 											)}
 											<button
@@ -393,7 +393,7 @@ export default function Settings() {
 												onClick={() => void handleRemoveKey(k.provider)}
 												className="text-xs font-semibold text-danger transition hover:opacity-80"
 											>
-												Hapus
+												Remove
 											</button>
 										</div>
 									</div>
@@ -411,18 +411,18 @@ export default function Settings() {
 								}}
 								className="w-full"
 							>
-								+ Tambah / ganti key provider
+								Add or replace a provider key
 							</Button>
 						) : (
 							<>
 								<div className="mb-3 flex items-center justify-between">
-									<p className="text-sm font-semibold text-ink">Tambah / ganti key</p>
+									<p className="text-sm font-semibold text-ink">Add or replace a key</p>
 									<button
 										type="button"
 										onClick={() => setAddingKey(false)}
 										className="text-sm font-semibold text-muted transition hover:text-ink"
 									>
-										Batal
+										Cancel
 									</button>
 								</div>
 								<ProviderSetupForm
@@ -443,7 +443,7 @@ export default function Settings() {
 
 						<div className="mt-4 flex flex-wrap gap-3">
 							<Button variant="secondary" onClick={() => void testConnection()} disabled={busy || !connected}>
-								{busy ? "Testing…" : "Test Connection"}
+								{busy ? "Testing…" : "Test connection"}
 							</Button>
 						</div>
 					</div>
@@ -453,15 +453,15 @@ export default function Settings() {
 			<section className="mt-8">
 				<SectionTitle>Voice</SectionTitle>
 				<p className="mb-4 mt-1.5 text-sm text-muted">
-					Pilih mesin STT & TTS. Browser adalah bawaan tanpa perlu key; Deepgram butuh API
-					key dan menawarkan kualitas lebih baik.
+					Choose your speech engines. The browser engine works out of the box; Deepgram
+					needs an API key and sounds better.
 				</p>
 				<div className="rounded-lg border border-line bg-paper">
 					{/* STT engine */}
 					<div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft p-5">
 						<div>
 							<p className="text-[15px] font-semibold text-ink">Speech-to-text engine</p>
-							<p className="mt-1 text-sm text-muted">Mesin yang mentranskripsi ucapanmu.</p>
+							<p className="mt-1 text-sm text-muted">Transcribes what you say.</p>
 						</div>
 						<select
 							value={settings.sttProvider}
@@ -480,7 +480,7 @@ export default function Settings() {
 					<div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft p-5">
 						<div>
 							<p className="text-[15px] font-semibold text-ink">Voice engine</p>
-							<p className="mt-1 text-sm text-muted">Suara yang dipakai coach membacakan.</p>
+							<p className="mt-1 text-sm text-muted">The voice the coach speaks with.</p>
 						</div>
 						<select
 							value={settings.ttsProvider}
@@ -499,7 +499,7 @@ export default function Settings() {
 						<div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft p-5">
 							<div>
 								<p className="text-[15px] font-semibold text-ink">Deepgram voice</p>
-								<p className="mt-1 text-sm text-muted">Pilih suara Aura untuk TTS.</p>
+								<p className="mt-1 text-sm text-muted">Pick an Aura voice.</p>
 							</div>
 							<select
 								value={settings.deepgramVoice}
@@ -518,7 +518,7 @@ export default function Settings() {
 						<div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft p-5">
 							<div>
 								<p className="text-[15px] font-semibold text-ink">Voice</p>
-								<p className="mt-1 text-sm text-muted">Suara browser untuk TTS.</p>
+								<p className="mt-1 text-sm text-muted">Your browser's built-in voice.</p>
 							</div>
 							<select
 								value={settings.voiceUri}
@@ -542,24 +542,24 @@ export default function Settings() {
 								<div>
 									<p className="text-[15px] font-semibold text-ink">Deepgram API key</p>
 									<p className="mt-1 text-sm text-muted">
-										Key dikirim ke server TOLK, divalidasi, lalu disimpan terenkripsi. Tidak
-										pernah masuk browser.
+										The key is sent to the TOLK server, validated, and stored encrypted.
+										It never touches the browser.
 									</p>
 								</div>
 								{dgHasKey ? (
 									<div className="flex flex-wrap items-center gap-3">
-										<Badge dot="success">Deepgram key aktif</Badge>
+										<Badge dot="success">Deepgram key active</Badge>
 										<button
 											type="button"
 											onClick={() => void handleRemoveDeepgramKey()}
 											className="text-xs font-semibold text-danger transition hover:opacity-80"
 										>
-											Hapus
+											Remove
 										</button>
 									</div>
 								) : (
 									<Badge dot="muted">
-										{user ? "Belum ada key" : "Perlu login"}
+										{user ? "No key yet" : "Sign in required"}
 									</Badge>
 								)}
 							</div>
@@ -577,17 +577,17 @@ export default function Settings() {
 							) : dgHasKey ? null : (
 								<div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
 									<div className="w-full sm:max-w-[360px]">
-										<label htmlFor="dg-key" className="text-sm font-medium text-ink">
-											API key Deepgram
-										</label>
-										<input
-											id="dg-key"
-											type="password"
-											autoComplete="off"
-											spellCheck={false}
-											value={dgKey}
-											onChange={(event) => setDgKey(event.target.value)}
-											placeholder="Masukkan key Deepgram…"
+									<label htmlFor="dg-key" className="text-sm font-medium text-ink">
+										Deepgram API key
+									</label>
+									<input
+										id="dg-key"
+										type="password"
+										autoComplete="off"
+										spellCheck={false}
+										value={dgKey}
+										onChange={(event) => setDgKey(event.target.value)}
+										placeholder="Paste your Deepgram key…"
 											className="mt-1.5 w-full rounded-lg border border-line bg-paper px-3.5 py-2.5 text-sm text-ink"
 										/>
 									</div>
@@ -597,7 +597,7 @@ export default function Settings() {
 										disabled={dgKeyBusy || !dgKey.trim()}
 										className="sm:min-h-[44px]"
 									>
-										{dgKeyBusy ? "Menyimpan…" : "Simpan key"}
+										{dgKeyBusy ? "Saving…" : "Save key"}
 									</Button>
 								</div>
 							)}
@@ -611,7 +611,7 @@ export default function Settings() {
 					<div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft p-5">
 						<div>
 							<p className="text-[15px] font-semibold text-ink">Speaking speed</p>
-							<p className="mt-1 text-sm text-muted">Kecepatan jawaban dibacakan.</p>
+							<p className="mt-1 text-sm text-muted">How fast the coach reads replies.</p>
 						</div>
 						<Segmented
 							label="Speaking speed"
@@ -626,8 +626,8 @@ export default function Settings() {
 					</div>
 					<div className="flex flex-wrap items-center justify-between gap-3 p-5">
 						<div>
-							<p className="text-[15px] font-semibold text-ink">Test Voice</p>
-							<p className="mt-1 text-sm text-muted">Dengar voice terpilih membaca sampel.</p>
+							<p className="text-[15px] font-semibold text-ink">Test voice</p>
+							<p className="mt-1 text-sm text-muted">Hear the selected voice read a sample.</p>
 						</div>
 						<Button
 							variant="secondary"
@@ -639,7 +639,7 @@ export default function Settings() {
 									: !isTtsSupported())
 							}
 						>
-							Test Voice
+							Test voice
 						</Button>
 					</div>
 				</div>
@@ -701,8 +701,8 @@ export default function Settings() {
 						<div className="border-b border-line-soft p-5">
 							<p className="text-sm font-semibold text-ink">Local profile</p>
 							<p className="mt-0.5 text-sm text-muted">
-								Belum login. Sign in untuk mengelola API key & menyimpan progress
-								cross-device.
+								You're not signed in. Sign in to manage API keys and keep progress across
+								devices.
 							</p>
 						</div>
 					)}
@@ -715,7 +715,7 @@ export default function Settings() {
 							<div>
 								<p className="text-sm font-semibold text-danger">Sign out</p>
 								<p className="mt-0.5 text-sm text-muted">
-									Keluar dari sesi di perangkat ini. API key tetap tersimpan di akun.
+									Ends the session on this device. Your keys stay saved in your account.
 								</p>
 							</div>
 						</button>
@@ -735,8 +735,8 @@ export default function Settings() {
 					<div>
 						<p className="font-mono text-[13px] text-muted">TOLK v0.2.0</p>
 						<p className="mt-1 text-sm text-muted">
-							BYOK multi-provider — key disimpan terenkripsi di server, dipakai server
-							saat chat.
+							BYOK multi-provider. Keys are stored encrypted on the server and used
+							server-side for chat.
 						</p>
 					</div>
 					<Button to="/" variant="secondary">

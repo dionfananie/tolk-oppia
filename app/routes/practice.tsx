@@ -502,22 +502,22 @@ export default function Practice() {
 
 						<footer className="flex-none pb-4 pt-2">
 							{!voiceSupported && (
-								<p className="rounded-md bg-surface px-3 py-2 text-center text-sm text-muted">
-									Voice needs Chrome, Edge, or Safari. Microphone tak tersedia — periksa izin
-									mikrofon atau gunakan browser yang mendukung speech.
-								</p>
+							<p className="rounded-md bg-surface px-3 py-2 text-center text-sm text-muted">
+								Voice needs Chrome, Edge, or Safari. Check your microphone permission, or
+								type your replies instead.
+							</p>
 							)}
 
 							<button
 								type="button"
 								onClick={toggleClickToSpeak}
 								disabled={busy || !voiceSupported}
-								aria-label="Click to speak"
+								aria-label="Tap to speak"
 								className={`inline-flex min-h-[56px] w-full items-center justify-center gap-2.5 rounded-lg px-6 py-3.5 text-base font-semibold text-paper transition-colors focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-paper focus:outline-none disabled:pointer-events-none disabled:opacity-40 ${listening ? "animate-mic-listen bg-accent-dark" : "bg-accent hover:bg-accent-dark"
 									}`}
 							>
 								<IconMic className="size-6" />
-								{listening ? "Listening… tap to stop" : "Click to Speak"}
+								{listening ? "Listening… tap to stop" : "Tap to speak"}
 							</button>
 						</footer>
 					</div>

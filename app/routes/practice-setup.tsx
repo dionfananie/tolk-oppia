@@ -256,12 +256,12 @@ export default function PracticeSetup() {
 						{providerLoading
 							? "Checking provider connection…"
 							: configured
-								? "Start Conversation"
+								? "Start conversation"
 								: "Connect a provider to continue"}
 					</Button>
 					{!configured && !providerLoading && (
 						<Button to="/settings" variant="secondary" size="lg" className="mt-3 w-full">
-							Open Settings
+							Open settings
 						</Button>
 					)}
 					<p className="mt-3 text-center text-sm text-muted">

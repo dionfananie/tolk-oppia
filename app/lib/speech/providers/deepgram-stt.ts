@@ -90,12 +90,12 @@ export function useDeepgramSTT(): STTController {
 				}
 			};
 			recorder.onerror = () => {
-				setError("MediaRecorder gagal merekam audio.");
+				setError("Audio recording failed.");
 				setIsListening(false);
 			};
 			recorder.start(250);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Gagal mengakses mikrofon.");
+			setError(err instanceof Error ? err.message : "Could not access the microphone.");
 			setIsListening(false);
 			try {
 				await bodyStream.cancel();

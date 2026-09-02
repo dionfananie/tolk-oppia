@@ -47,24 +47,24 @@ authApp.post("/keys/test", async (c) => {
 	const body = rawBody as { provider?: string; apiKey?: string; model?: string; baseURL?: string };
 	const provider = (body.provider ?? "").trim();
 	const apiKey = (body.apiKey ?? "").trim();
-	if (!provider || !apiKey) return json({ error: "provider & apiKey wajib" }, 400);
+	if (!provider || !apiKey) return json({ error: "provider and apiKey are required" }, 400);
 
 	if (provider === DEEPGRAM_PROVIDER) {
 		try {
 			const valid = await testDeepgramKey(apiKey);
 			return valid
 				? json({ valid: true, provider })
-				: json({ valid: false, error: "Deepgram key tidak valid." }, 400);
+				: json({ valid: false, error: "That Deepgram key is not valid." }, 400);
 		} catch (err) {
 			return json(
-				{ valid: false, error: "Gagal validasi Deepgram: " + (err instanceof Error ? err.message : "unknown") },
+				{ valid: false, error: "Deepgram validation failed: " + (err instanceof Error ? err.message : "unknown") },
 				400,
 			);
 		}
 	}
 
 	const providerCfg = getProvider(provider);
-	if (!providerCfg) return json({ error: `Provider "${provider}" tidak didukung.` }, 400);
+	if (!providerCfg) return json({ error: `Provider "${provider}" is not supported.` }, 400);
 	const model = (body.model ?? "").trim() || providerCfg.models[0]?.id || "";
 	const baseURL = (body.baseURL ?? "").trim() || undefined;
 	try {
@@ -72,7 +72,7 @@ authApp.post("/keys/test", async (c) => {
 		return json({ valid: true, provider });
 	} catch (err) {
 		const msg =
-			err instanceof AIError ? err.message : "Validasi key gagal. Periksa kembali key dan model.";
+			err instanceof AIError ? err.message : "Key validation failed. Check the key and model.";
 		return json(
 			{ valid: false, error: msg, code: err instanceof AIError ? err.code : "INVALID_API_KEY" },
 			400,
@@ -83,7 +83,7 @@ authApp.post("/keys/test", async (c) => {
 // Redirect konsen Google
 authApp.get("/google", async (c) => {
 	const { GOOGLE_CLIENT_ID: id, GOOGLE_REDIRECT_URI: redirect } = c.env;
-	if (!id || !redirect) return json({ error: "Google login belum dikonfigurasi" }, 500);
+	if (!id || !redirect) return json({ error: "Google sign-in is not configured" }, 500);
 	const url = new URL(c.req.url);
 	const returnTo = url.searchParams.get("returnTo") || "/";
 	const rand = await genOAuthState();
@@ -108,9 +108,9 @@ authApp.get("/google/callback", async (c) => {
 		const sp = new URL(c.req.url).searchParams;
 		const code = sp.get("code");
 		const error = sp.get("error");
-		if (error) return json({ error: `Google auth dibatalkan: ${error}` }, 400);
-		if (!code) return json({ error: "Kode otorisasi tidak ada" }, 400);
-		if (!id || !secret) return json({ error: "Google login belum dikonfigurasi" }, 500);
+		if (error) return json({ error: `Google sign-in was cancelled: ${error}` }, 400);
+		if (!code) return json({ error: "Missing authorization code" }, 400);
+		if (!id || !secret) return json({ error: "Google sign-in is not configured" }, 500);
 
 		const tokenResp = await fetch(GOOGLE_TOKEN_URL, {
 			method: "POST",
@@ -127,18 +127,18 @@ authApp.get("/google/callback", async (c) => {
 		try {
 			tokenJson = (await tokenResp.json()) as GoogleTokenResp;
 		} catch {
-			return json({ error: `Gagal parse respon token Google (HTTP ${tokenResp.status})` }, 500);
+			return json({ error: `Could not parse the Google token response (HTTP ${tokenResp.status})` }, 500);
 		}
 		if (!tokenJson.access_token || tokenJson.error) {
-			return json({ error: `Gagal mendapat token Google: ${tokenJson.error || tokenResp.status}` }, 400);
+			return json({ error: `Could not get a Google token: ${tokenJson.error || tokenResp.status}` }, 400);
 		}
 
 		const userResp = await fetch(GOOGLE_USERINFO_URL, {
 			headers: { authorization: `Bearer ${tokenJson.access_token}` },
 		});
-		if (!userResp.ok) return json({ error: `Gagal mengambil profil Google (HTTP ${userResp.status})` }, 400);
+		if (!userResp.ok) return json({ error: `Could not fetch the Google profile (HTTP ${userResp.status})` }, 400);
 		const g = (await userResp.json()) as GoogleUser;
-		if (!g.email) return json({ error: "Google tidak mengembalikan email" }, 400);
+		if (!g.email) return json({ error: "Google did not return an email" }, 400);
 
 		const googleSub = g.id || `sub:${g.email}`;
 		const email = g.email.toLowerCase().trim();
@@ -288,8 +288,8 @@ authApp.post("/keys", async (c) => {
 	};
 	const provider = (body.provider ?? "").trim();
 	const apiKey = (body.apiKey ?? "").trim();
-	if (!provider || !apiKey) return json({ error: "provider & apiKey wajib" }, 400);
-	if (!master) return json({ error: "KEY_STORE_MASTER belum dikonfigurasi" }, 500);
+	if (!provider || !apiKey) return json({ error: "provider and apiKey are required" }, 400);
+	if (!master) return json({ error: "KEY_STORE_MASTER is not configured" }, 500);
 
 	const isDeepgram = provider === DEEPGRAM_PROVIDER;
 
@@ -300,12 +300,12 @@ authApp.post("/keys", async (c) => {
 		try {
 			const valid = await testDeepgramKey(apiKey);
 			if (!valid) {
-				return json({ error: "Deepgram key tidak valid.", code: "INVALID_API_KEY" }, 400);
+				return json({ error: "That Deepgram key is not valid.", code: "INVALID_API_KEY" }, 400);
 			}
 		} catch (err) {
 			return json(
 				{
-					error: "Gagal validasi Deepgram: " + (err instanceof Error ? err.message : "unknown"),
+					error: "Deepgram validation failed: " + (err instanceof Error ? err.message : "unknown"),
 					code: "INVALID_API_KEY",
 				},
 				400,
@@ -315,7 +315,7 @@ authApp.post("/keys", async (c) => {
 		baseURL = undefined;
 	} else {
 		const providerCfg = getProvider(provider);
-		if (!providerCfg) return json({ error: `Provider "${provider}" tidak didukung.` }, 400);
+		if (!providerCfg) return json({ error: `Provider "${provider}" is not supported.` }, 400);
 		model = (body.model ?? "").trim() || providerCfg.models[0]?.id || "";
 		baseURL = (body.baseURL ?? "").trim() || undefined;
 
@@ -324,7 +324,7 @@ authApp.post("/keys", async (c) => {
 			await testKey(provider as never, apiKey, model, baseURL);
 		} catch (err) {
 			const msg =
-				err instanceof AIError ? err.message : "Validasi key gagal. Periksa kembali key dan model.";
+				err instanceof AIError ? err.message : "Key validation failed. Check the key and model.";
 			return json({ error: msg, code: err instanceof AIError ? err.code : "INVALID_API_KEY" }, 400);
 		}
 	}

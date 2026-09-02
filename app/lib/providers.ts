@@ -59,7 +59,7 @@ export const PROVIDER_META: {
 	{
 		provider: "anthropic",
 		label: "Anthropic (Claude)",
-		description: "Claude models — strong reasoning & long context.",
+		description: "Claude models with strong reasoning and long context.",
 		defaultModel: "claude-sonnet-4-5",
 		models: [
 			{ id: "claude-sonnet-4-5", label: "Claude Sonnet 4.5" },
@@ -70,7 +70,7 @@ export const PROVIDER_META: {
 	{
 		provider: "gemini",
 		label: "Google Gemini",
-		description: "Gemini — free tier available on Flash models.",
+		description: "Gemini, with a free tier on Flash models.",
 		defaultModel: "gemini-2.5-flash",
 		models: [
 			{ id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
@@ -81,7 +81,7 @@ export const PROVIDER_META: {
 	{
 		provider: "openrouter",
 		label: "OpenRouter",
-		description: "Aggregator — ratusan model via satu key.",
+		description: "One key, hundreds of models.",
 		defaultModel: "deepseek/deepseek-v4-flash",
 		models: [
 			{ id: "deepseek/deepseek-v4-flash", label: "DeepSeek V4 Flash (via OR)" },
@@ -92,7 +92,7 @@ export const PROVIDER_META: {
 	{
 		provider: "groq",
 		label: "Groq",
-		description: "LPU inference — sangat cepat, open models.",
+		description: "Very fast inference on open models.",
 		defaultModel: "llama-3.3-70b-versatile",
 		models: [
 			{ id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B Versatile" },
@@ -158,7 +158,7 @@ export async function chat(
 	options: ChatOptions = {},
 ): Promise<string> {
 	const { provider, model } = config;
-	if (!model.trim()) throw new Error("Pilih model terlebih dahulu.");
+	if (!model.trim()) throw new Error("Choose a model first.");
 
 	let res: Response;
 	try {
@@ -176,7 +176,7 @@ export async function chat(
 		});
 	} catch (error) {
 		throw new Error(
-			`Server relay tidak bisa dihubungi (${error instanceof Error ? error.message : "network error"})`,
+			`Could not reach the TOLK server (${error instanceof Error ? error.message : "network error"})`,
 		);
 	}
 
@@ -187,16 +187,16 @@ export async function chat(
 	if (!res.ok) {
 		if (data.code === "no_api_key" || res.status === 404) {
 			throw new Error(
-				"Belum ada key untuk provider ini. Buka Settings → AI providers lalu tambahkan key-nya.",
+				"No key saved for this provider. Open Settings, then AI providers, and add one.",
 			);
 		}
 		if (data.code === "RATE_LIMITED") {
-			throw new Error("Terlalu banyak permintaan. Coba sebentar lagi.");
+			throw new Error("Too many requests. Try again in a moment.");
 		}
-		throw new Error(data.error || `Server relay gagal (HTTP ${res.status}).`);
+		throw new Error(data.error || `Server relay failed (HTTP ${res.status}).`);
 	}
 	if (typeof data.content !== "string" || !data.content.trim()) {
-		throw new Error("Server relay mengembalikan respons kosong.");
+		throw new Error("The server returned an empty response.");
 	}
 	return data.content.trim();
 }

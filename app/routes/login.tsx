@@ -59,8 +59,8 @@ export default function Login() {
 				</Button>
 			</div>
 			<p className="mt-5 rounded-md bg-surface px-3 py-2.5 text-sm leading-relaxed text-muted">
-				Tanpa login, key OpenRouter tersimpan hanya di perangkat ini. Login untuk menyimpan key
-				di server dan memakainya di semua perangkat.
+				Without signing in, your key stays on this device only. Sign in to keep it on our
+				server and use it on every device.
 			</p>
 		</AuthShell>
 	);

@@ -57,7 +57,7 @@ export function AccountMenu() {
 				onClick={() => setOpen((v) => !v)}
 				aria-haspopup="menu"
 				aria-expanded={open}
-				aria-label={user ? "Menu akun" : "Masuk atau buat akun"}
+				aria-label={user ? "Account menu" : "Sign in or create an account"}
 				className="grid size-[44px] place-items-center overflow-hidden rounded-full border border-base-300 bg-base-200 text-base-content/70 transition-colors hover:border-base-content/30 hover:text-base-content focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 focus:ring-offset-base-100 focus:outline-none"
 			>
 				{user?.avatar_url ? (
@@ -76,7 +76,7 @@ export function AccountMenu() {
 						<>
 							<div className="px-3 py-2">
 								<p className="truncate text-sm font-semibold text-base-content">
-									{user.name || "Akun"}
+									{user.name || "Account"}
 								</p>
 								{user.email && (
 									<p className="truncate text-xs text-base-content/60">{user.email}</p>
@@ -147,7 +147,7 @@ export function AppShell({ active, children }: Props) {
 						})}
 					</nav>
 					<div className="ml-auto flex items-center gap-2">
-						<Button to="/practice">Start Practice</Button>
+						<Button to="/practice">Start practicing</Button>
 						<ThemeToggle />
 						<AccountMenu />
 					</div>

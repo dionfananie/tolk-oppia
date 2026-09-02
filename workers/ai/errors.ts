@@ -17,7 +17,7 @@ export function fromHttpError(
 
 	// Rate limited (banyak provider pakai 429, kodinya `rate_limit_exceeded` / `429`).
 	if (status === 429 || /rate.?limit|too many requests|429/i.test(low)) {
-		return new AIError("RATE_LIMITED", provider, "Rate limited oleh provider.", true);
+		return new AIError("RATE_LIMITED", provider, "The provider is rate limiting requests.", true);
 	}
 	// Auth gagal: 401/403, atau body menyebut api key / unauthorized / forbidden.
 	if (
@@ -26,21 +26,21 @@ export function fromHttpError(
 		/low.credit|quota|insufficient|no credit/.test(low)
 	) {
 		if (/insufficient.?credit|quota|billing|payment/i.test(low)) {
-			return new AIError("INSUFFICIENT_CREDITS", provider, "Kredit/billing provider habis.", false);
+			return new AIError("INSUFFICIENT_CREDITS", provider, "The provider account is out of credits or has a billing problem.", false);
 		}
-		return new AIError("INVALID_API_KEY", provider, "API key provider tidak valid atau tidak berizin.", false);
+		return new AIError("INVALID_API_KEY", provider, "The API key is invalid or not authorized for this model.", false);
 	}
 	// Model tidak ditemukan: body menyebut model, atau 400 kadang karena model.
 	if (status === 404 || /model.?not.?found|no such model|invalid.?model/i.test(low)) {
-		return new AIError("MODEL_NOT_FOUND", provider, "Model yang dipilih tidak tersedia di provider.", false);
+		return new AIError("MODEL_NOT_FOUND", provider, "The selected model is not available on this provider.", false);
 	}
 	if (status === 408 || status === 504) {
-		return new AIError("TIMEOUT", provider, "Provider timeout.", true);
+		return new AIError("TIMEOUT", provider, "The provider timed out.", true);
 	}
 	return new AIError(
 		"PROVIDER_ERROR",
 		provider,
-		typeof message === "string" && message.trim() ? message : `HTTP ${status} dari provider.`,
+		typeof message === "string" && message.trim() ? message : `HTTP ${status} from the provider.`,
 		status >= 500,
 	);
 }

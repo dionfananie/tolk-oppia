@@ -37,7 +37,7 @@ export function useWebSpeechSTT(): STTController {
 			},
 		});
 		if (!rec) {
-			setError("Browser tidak mendukung Web Speech API.");
+			setError("This browser does not support the Web Speech API.");
 			return;
 		}
 		recRef.current?.stop();

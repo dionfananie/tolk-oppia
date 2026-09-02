@@ -334,7 +334,7 @@ export default function Home() {
 								How it works
 							</a>
 							<a href="#byok" className="text-ink-2 transition-colors hover:text-ink">
-								Privacy
+								Your keys
 							</a>
 							<Link to="/login" className="text-ink-2 transition-colors hover:text-ink">
 								Sign in

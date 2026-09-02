@@ -56,14 +56,14 @@ export function useDeepgramTTS(): TTSController {
 					opts?.onEnd?.();
 				};
 				audio.onerror = () => {
-					setError("Gagal memutar audio Deepgram.");
+					setError("Could not play Deepgram audio.");
 					setIsSpeaking(false);
 					URL.revokeObjectURL(url);
 					opts?.onEnd?.();
 				};
 				await audio.play();
 			} catch (err) {
-				setError(err instanceof Error ? err.message : "Gagal memanggil Deepgram TTS.");
+				setError(err instanceof Error ? err.message : "Could not call Deepgram TTS.");
 			}
 		},
 		[],

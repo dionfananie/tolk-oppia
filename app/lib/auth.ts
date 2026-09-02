@@ -97,7 +97,7 @@ export async function testServerKey(value: {
 		const data = (await res.json().catch(() => ({}))) as { valid?: boolean; error?: string };
 		return { valid: Boolean(data.valid), error: data.error };
 	} catch {
-		return { valid: false, error: "Gagal terhubung server." };
+		return { valid: false, error: "Could not reach the server." };
 	}
 }
 
@@ -121,7 +121,7 @@ export async function saveServerKey(value: {
 		if (!res.ok) return { ok: false, error: data.error, code: data.code };
 		return { ok: true };
 	} catch {
-		return { ok: false, error: "Gagal terhubung server. Coba lagi." };
+		return { ok: false, error: "Could not reach the server. Try again." };
 	}
 }
 

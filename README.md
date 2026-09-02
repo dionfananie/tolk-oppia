@@ -1,109 +1,101 @@
-# Welcome to React Router + Cloudflare Workers!
+# TOLK
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cloudflare/templates/tree/main/react-router-starter-template)
+TOLK is an AI Business English coach. You pick a real work situation, an AI plays the other person, and you practice the conversation out loud or in text. When you finish, a coach-style report shows what you did well and how to say it better next time.
 
-![React Router Starter Template Preview](https://imagedelivery.net/wSMYJvS3Xw-n339CbDyDIA/bfdc2f85-e5c9-4c92-128b-3a6711249800/public)
+## What you can practice
 
-<!-- dash-content-start -->
+- **Workplace**: daily standups, status updates, 1-on-1s, asking for clarification, giving feedback.
+- **Business**: client negotiations, sales meetings, project updates, budget discussions.
+- **Career**: job interviews, salary negotiation, self-introductions, describing past projects.
+- **Communication**: small talk, disagreeing politely, saying no, asking a teammate for help.
 
-A modern, production-ready template for building full-stack React applications using [React Router](https://reactrouter.com/) and the [Cloudflare Vite plugin](https://developers.cloudflare.com/workers/vite-plugin/).
+Each scenario defines your role, the AI's role, an objective, and target vocabulary. The AI stays in character and never corrects you mid-conversation; feedback comes at the end.
 
 ## Features
 
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
-- 🔎 Built-in Observability to monitor your Worker
-<!-- dash-content-end -->
+- **Voice or text practice** with push-to-talk, live captions, and replay of any AI response. Uses the browser's built-in speech engine or Deepgram STT/TTS.
+- **Session feedback** scored across five dimensions: fluency, grammar, vocabulary, clarity, and professionalism, with concrete corrections that explain why the rewrite is better.
+- **Dashboard and progress tracking** with skill trends, streaks, and a recommended next scenario based on your weakest skill.
+- **Vocabulary bank** with definitions and real examples for every target word, plus a daily challenge to keep your streak going.
+- **Bring your own key (BYOK)**: connect DeepSeek, OpenAI, Anthropic, Gemini, OpenRouter, Groq, or Together AI. Keys are validated and stored encrypted (AES-GCM) on the server and are never sent to or kept in the browser.
+- **Google sign-in** so your keys and setup follow you across devices. Guest mode works without an account.
 
-## Getting Started
+## Tech stack
 
-Outside of this repo, you can start a new project with this template using [C3](https://developers.cloudflare.com/pages/get-started/c3/) (the `create-cloudflare` CLI):
+- [React Router 7](https://reactrouter.com/) with server-side rendering
+- [Cloudflare Workers](https://developers.cloudflare.com/workers/) with a [D1](https://developers.cloudflare.com/d1/) database
+- [Hono](https://hono.dev/) for the API layer (`/api/chat` relay, auth, key management)
+- [Tailwind CSS 4](https://tailwindcss.com/) and [daisyUI 5](https://daisyui.com/)
+- [Framer Motion](https://motion.dev/) for animation
 
-```bash
-npm create cloudflare@latest -- --template=cloudflare/templates/react-router-starter-template
-```
-
-A live public deployment of this template is available at [https://react-router-starter-template.templates.workers.dev](https://react-router-starter-template.templates.workers.dev)
-
-### Installation
-
-Install the dependencies:
+## Getting started
 
 ```bash
 npm install
-```
-
-### Development
-
-Start the development server with HMR:
-
-```bash
 npm run dev
 ```
 
-Your application will be available at `http://localhost:5173`.
+The app runs at `http://localhost:5173`.
 
-## Typegen
+### Typegen
 
 Generate types for your Cloudflare bindings in `wrangler.json`:
 
-```sh
+```bash
 npm run typegen
 ```
 
-## Building for Production
-
-Create a production build:
+### Building for production
 
 ```bash
 npm run build
 ```
 
-## Previewing the Production Build
-
-Preview the production build locally:
+### Previewing the production build
 
 ```bash
 npm run preview
 ```
 
-## Deployment
+## Configuration
 
-If you don't have a Cloudflare account, [create one here](https://dash.cloudflare.com/sign-up)! Go to your [Workers dashboard](https://dash.cloudflare.com/?to=%2F%3Aaccount%2Fworkers-and-pages) to see your [free custom Cloudflare Workers subdomain](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/) on `*.workers.dev`.
+The worker expects the following Cloudflare resources and secrets:
 
-Once that's done, you can build your app:
+1. A D1 database bound as `tolk_db` (see `wrangler.json`).
+2. Google OAuth credentials for sign-in:
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
+   - `GOOGLE_REDIRECT_URI`
+3. `KEY_STORE_MASTER`, the encryption master key used to encrypt stored provider API keys.
 
-```sh
-npm run build
+Apply the database migrations in `migrations/`:
+
+```bash
+npx wrangler d1 migrations apply tolk-db --local   # local development
+npx wrangler d1 migrations apply tolk-db --remote  # production
 ```
 
-And deploy it:
+## Deployment
 
-```sh
+```bash
 npm run deploy
 ```
 
-To deploy a preview URL:
+To upload a preview version and promote it after verification:
 
-```sh
+```bash
 npx wrangler versions upload
-```
-
-You can then promote a version to production after verification or roll it out progressively.
-
-```sh
 npx wrangler versions deploy
 ```
 
-## Styling
+## Scripts
 
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
-
----
-
-Built with ❤️ using React Router.
+| Script | What it does |
+| --- | --- |
+| `npm run dev` | Start the dev server with HMR |
+| `npm run build` | Create a production build |
+| `npm run preview` | Build and preview locally |
+| `npm run typegen` | Generate React Router and Cloudflare binding types |
+| `npm run typecheck` | Typegen plus `tsc` across all configs |
+| `npm run check` | Typecheck, build, and dry-run `wrangler deploy` |
+| `npm run deploy` | Deploy to Cloudflare Workers |

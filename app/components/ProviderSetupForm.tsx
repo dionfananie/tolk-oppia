@@ -73,7 +73,7 @@ export function ProviderSetupForm({
 	async function handleTest() {
 		if (!finalModel || !apiKey.trim()) {
 			setTestMsg(null);
-			setError("Isi model & API key dulu untuk menguji koneksi.");
+			setError("Enter a model and API key first to test the connection.");
 			return;
 		}
 		setError(null);
@@ -86,17 +86,17 @@ export function ProviderSetupForm({
 			...(baseURL.trim() ? { baseURL: baseURL.trim() } : {}),
 		});
 		setTesting(false);
-		setTestMsg(r.valid ? "✓ Koneksi berhasil. Key valid." : r.error || "Koneksi gagal.");
+		setTestMsg(r.valid ? "✓ Connection works. Key is valid." : r.error || "Connection failed.");
 	}
 
 	function submit(event: React.FormEvent) {
 		event.preventDefault();
 		if (!finalModel) {
-			setError("Pilih atau tulis nama model.");
+			setError("Pick a model or type a custom one.");
 			return;
 		}
 		if (!hasStoredKey && !apiKey.trim()) {
-			setError("Masukkan API key provider (atau login & pakai key yang sudah tersimpan).");
+			setError("Add your API key, or sign in to use a saved one.");
 			return;
 		}
 		setError(null);
@@ -143,7 +143,7 @@ export function ProviderSetupForm({
 						spellCheck={false}
 						value={customModel}
 						onChange={(e) => setCustomModel(e.target.value)}
-						placeholder="id model asli provider"
+						placeholder="The provider's model id"
 						className={inputClass}
 					/>
 				) : (
@@ -153,15 +153,15 @@ export function ProviderSetupForm({
 						onChange={(e) => selectModel(e.target.value)}
 						className={selectClass}
 					>
-						<option value="" disabled>
-							Pilih model
+					<option value="" disabled>
+						Choose a model
+					</option>
+					{getModels(provider).map((m) => (
+						<option key={m.id} value={m.id}>
+							{labelForModel(m.id) || m.label}
 						</option>
-						{getModels(provider).map((m) => (
-							<option key={m.id} value={m.id}>
-								{labelForModel(m.id) || m.label}
-							</option>
-						))}
-						<option value="__custom__">Tulis model custom…</option>
+					))}
+					<option value="__custom__">Custom model…</option>
 					</select>
 				)}
 			</div>
@@ -178,12 +178,12 @@ export function ProviderSetupForm({
 						spellCheck={false}
 						value={apiKey}
 						onChange={(e) => setApiKey(e.target.value)}
-						placeholder="Masukkan key provider…"
+						placeholder="Paste the provider's API key…"
 						className={inputClass}
 					/>
 					<p className="text-sm text-muted">
-						Key dikirim ke TOLK server (HTTPS) untuk divalidasi, lalu disimpan terenkripsi.
-						Key tidak akan digunakan untuk request dari browser.
+						Your key is sent to the TOLK server over HTTPS, validated, and stored
+						encrypted. It is never used for requests from your browser.
 					</p>
 				</div>
 			)}
@@ -191,7 +191,7 @@ export function ProviderSetupForm({
 			{!hasStoredKey && (
 				<div className="flex flex-col gap-[7px]">
 					<label htmlFor="pv-base" className="text-sm font-medium text-ink">
-						Base URL <span className="text-muted">(opsional)</span>
+						Base URL <span className="text-muted">(optional)</span>
 					</label>
 					<input
 						id="pv-base"
@@ -200,12 +200,12 @@ export function ProviderSetupForm({
 						spellCheck={false}
 						value={baseURL}
 						onChange={(e) => setBaseURL(e.target.value)}
-						placeholder="https://… pakai default provider bila kosong"
+						placeholder="https://… leave empty to use the provider's default"
 						className={inputClass}
 					/>
 					<p className="text-sm text-muted">
-						Kosongkan untuk memakai endpoint default provider. Isi hanya untuk gateway/endpoint
-						kustom (https).
+						Leave empty to use the provider's default endpoint. Fill it in only for a
+						custom HTTPS gateway.
 					</p>
 				</div>
 			)}
@@ -217,7 +217,7 @@ export function ProviderSetupForm({
 					disabled={testing || !apiKey.trim()}
 					className="w-full rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink-2 transition hover:bg-surface-strong disabled:opacity-50"
 				>
-					{testing ? "Testing…" : "Test Connection"}
+					{testing ? "Testing…" : "Test connection"}
 				</button>
 			)}
 

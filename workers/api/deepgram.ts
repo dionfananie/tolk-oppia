@@ -54,12 +54,12 @@ deepgramApp.get("/dg/status", async (c) => {
 // POST /api/dg/tts — proksi TTS: key user dipakai server utk panggil Aura, audio dikirim ke client.
 deepgramApp.post("/dg/tts", async (c) => {
 	const userId = await authUser(c);
-	if (!userId) return json({ error: "unauthorized — login required" }, 401);
+	if (!userId) return json({ error: "unauthorized, sign in required" }, 401);
 
 	const key = await deepgramKey(c, userId);
 	if (!key) {
 		return json(
-			{ error: "no_deepgram_key", message: "Simpan API key Deepgram dulu di Settings untuk memakai Deepgram TTS." },
+			{ error: "no_deepgram_key", message: "Save a Deepgram API key in Settings to use Deepgram TTS." },
 			404,
 		);
 	}
@@ -68,7 +68,7 @@ deepgramApp.post("/dg/tts", async (c) => {
 		.json<{ text?: string; voice?: string }>()
 		.catch(() => ({ text: undefined, voice: undefined }));
 	const text = (body.text ?? "").trim();
-	if (!text) return json({ error: "text wajib" }, 400);
+	if (!text) return json({ error: "text is required" }, 400);
 
 	// Rate limit kecil per user agar abuse tidak merusak kuota.
 	return deepgramSpeak(key, text, body.voice);
@@ -82,12 +82,12 @@ deepgramApp.post("/dg/transcribe", (c) => {
 	return (async () => {
 		const userId = await authUser(c);
 		if (!userId) {
-			return json({ error: "unauthorized — login required" }, 401);
+			return json({ error: "unauthorized, sign in required" }, 401);
 		}
 		const key = await deepgramKey(c, userId);
 		if (!key) {
 			return json(
-				{ error: "no_deepgram_key", message: "Simpan API key Deepgram dulu di Settings untuk memakai Deepgram STT." },
+				{ error: "no_deepgram_key", message: "Save a Deepgram API key in Settings to use Deepgram STT." },
 				404,
 			);
 		}

@@ -12,7 +12,7 @@ export function useWebSpeechTTS(): TTSController {
 	const speakText = useCallback(
 		async (text: string, opts?: { voice?: string; rate?: number; onEnd?: () => void }) => {
 			if (!isTtsSupported()) {
-				setError("Browser tidak mendukung speech synthesis.");
+				setError("This browser does not support speech synthesis.");
 				return;
 			}
 			setError(null);

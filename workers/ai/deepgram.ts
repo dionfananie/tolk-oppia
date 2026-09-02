@@ -49,7 +49,7 @@ export async function deepgramSpeak(
 	if (!res.ok) {
 		const text = await res.text().catch(() => "");
 		return new Response(
-			JSON.stringify({ error: `Deepgram TTS gagal (HTTP ${res.status})${text ? `: ${text}` : ""}` }),
+			JSON.stringify({ error: `Deepgram TTS failed (HTTP ${res.status})${text ? `: ${text}` : ""}` }),
 			{ status: res.status, headers: { "content-type": "application/json" } },
 		);
 	}
@@ -158,7 +158,7 @@ export function streamTranscribe(apiKey: string, body: ReadableStream<Uint8Array
 			ws.onerror = () => {
 				if (!wsOpen) {
 					// Gagal sebelum terhubung, mis. key invalid / kuota habis.
-					sendSse({ type: "error", text: "", error: "Gagal koneksi ke Deepgram speech." });
+					sendSse({ type: "error", text: "", error: "Could not connect to Deepgram speech." });
 				}
 				close();
 			};

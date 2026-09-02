@@ -59,8 +59,8 @@ export default function Signup() {
 				</Button>
 			</div>
 			<p className="mt-5 rounded-md bg-surface px-3 py-2.5 text-sm leading-relaxed text-muted">
-				Akun dibuat otomatis dari akun Google saat pertama login (signup = login pertama kali).
-				Guest mode tetap bisa dipakai tanpa akun.
+				Your account is created from your Google account the first time you sign in. Guest
+				mode still works without an account.
 			</p>
 		</AuthShell>
 	);

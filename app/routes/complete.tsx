@@ -43,10 +43,10 @@ export default function Complete() {
 		<AppShell active="practice">
 			<div className="mx-auto mt-6 max-w-[520px] rounded-lg bg-paper px-10 py-14 text-center shadow-sm ring-1 ring-line">
 				<p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-muted">
-					Session complete
+					{scenario?.category ?? "Practice"}
 				</p>
 				<h1 className="mt-3 font-display text-[clamp(28px,3.4vw,38px)] font-semibold tracking-[-0.015em] text-ink">
-					Practice complete
+					Session complete
 				</h1>
 				<p className="mt-2 text-muted">{scenario?.title ?? "Conversation"}</p>
 
@@ -66,9 +66,9 @@ export default function Complete() {
 				</div>
 
 				<div className="mt-8 grid gap-3 sm:grid-cols-2">
-					<Button to={`/results/${session.id}`}>See Feedback</Button>
+					<Button to={`/results/${session.id}`}>See feedback</Button>
 					<Button to={`/practice/${session.scenarioId}/setup`} variant="secondary">
-						Practice Again
+						Practice again
 					</Button>
 				</div>
 			</div>

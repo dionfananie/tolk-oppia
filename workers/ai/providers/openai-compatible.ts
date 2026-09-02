@@ -17,18 +17,18 @@ export function validateBaseURL(raw: string): string {
 	try {
 		u = new URL(raw);
 	} catch {
-		throw new AIError("UNSUPPORTED_PROVIDER", "openai", "Base URL tidak valid.");
+		throw new AIError("UNSUPPORTED_PROVIDER", "openai", "Base URL is not a valid URL.");
 	}
 	if (u.protocol !== "https:") {
-		throw new AIError("UNSUPPORTED_PROVIDER", "openai", "Base URL WAJIB https.");
+		throw new AIError("UNSUPPORTED_PROVIDER", "openai", "The Base URL must use https.");
 	}
 	const host = u.hostname.toLowerCase();
 	// Blokir IP privat / localhost / metadata.
 	if (host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "[::1]") {
-		throw new AIError("UNSUPPORTED_PROVIDER", "openai", "Base URL menunjuk ke localhost — tidak diizinkan.");
+		throw new AIError("UNSUPPORTED_PROVIDER", "openai", "The Base URL points to localhost, which is not allowed.");
 	}
 	if (/^169\.254\./.test(host) || /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[01])\./.test(host)) {
-		throw new AIError("UNSUPPORTED_PROVIDER", "openai", "Base URL menunjuk ke jaringan internal/private — tidak diizinkan.");
+		throw new AIError("UNSUPPORTED_PROVIDER", "openai", "The Base URL points to an internal network, which is not allowed.");
 	}
 	return u.toString().replace(/\/+$/, "");
 }
@@ -70,7 +70,7 @@ export class OpenAICompatibleProvider implements AIProvider {
 			throw new AIError(
 				"TIMEOUT",
 				this.providerId,
-				`Gagal menghubungi provider: ${err instanceof Error ? maskSensitive(err.message) : "network error"}`,
+				`Could not reach the provider: ${err instanceof Error ? maskSensitive(err.message) : "network error"}`,
 				true,
 			);
 		}
@@ -84,7 +84,7 @@ export class OpenAICompatibleProvider implements AIProvider {
 		try {
 			data = JSON.parse(text);
 		} catch {
-			throw new AIError("PROVIDER_ERROR", this.providerId, "Respon provider tidak valid (bukan JSON).", false);
+			throw new AIError("PROVIDER_ERROR", this.providerId, "The provider response is invalid (not JSON).", false);
 		}
 
 		const d = data as {
@@ -93,7 +93,7 @@ export class OpenAICompatibleProvider implements AIProvider {
 		};
 		const content = d?.choices?.[0]?.message?.content;
 		if (typeof content !== "string" || !content.trim()) {
-			throw new AIError("PROVIDER_ERROR", this.providerId, "Provider mengembalikan respons kosong.", false);
+			throw new AIError("PROVIDER_ERROR", this.providerId, "The provider returned an empty response.", false);
 		}
 
 		return {

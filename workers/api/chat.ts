@@ -44,10 +44,10 @@ chatApp.post("/chat", async (c) => {
 	const db = c.env.tolk_db;
 	const master = c.env.KEY_STORE_MASTER;
 	const userId = await getSessionUser(db, c.req.raw);
-	if (!userId) return json({ error: "unauthorized — login required" }, 401);
+	if (!userId) return json({ error: "unauthorized, sign in required" }, 401);
 
-	if (rateLimited(`chat:${userId}`)) return json({ error: "RATE_LIMITED: terlalu banyak request, coba sebentar lagi." }, 429);
-	if (!master) return json({ error: "KEY_STORE_MASTER belum dikonfigurasi" }, 500);
+	if (rateLimited(`chat:${userId}`)) return json({ error: "RATE_LIMITED: too many requests, try again shortly." }, 429);
+	if (!master) return json({ error: "KEY_STORE_MASTER is not configured" }, 500);
 
 	const rawBody = await c.req.json<Record<string, unknown>>().catch(() => ({}));
 	const raw = rawBody as {
@@ -62,7 +62,7 @@ chatApp.post("/chat", async (c) => {
 	const model = (raw.model ?? "").trim();
 	const { messages, temperature, maxTokens, json: wantJson } = raw;
 	if (!provider || !model || !Array.isArray(messages) || messages.length === 0) {
-		return json({ error: "provider, model & messages wajib" }, 400);
+		return json({ error: "provider, model, and messages are required" }, 400);
 	}
 
 	// Ambil credential utk (user, provider), decrypt key di server.
@@ -75,9 +75,9 @@ chatApp.post("/chat", async (c) => {
 		.first<{ encrypted_api_key: string; iv: string; base_url: string | null }>();
 
 	if (!row) {
-		return json({ error: "no_api_key", message: `Belum ada API key utk provider "${provider}". Buka Settings → AI provider lalu simpan key.` }, 404);
+		return json({ error: "no_api_key", message: `No API key saved for provider "${provider}". Open Settings, then AI providers, and add one.` }, 404);
 	}
-	if (rateLimited(`chat:${userId}:${provider}`)) return json({ error: "RATE_LIMITED: terlalu banyak request ke provider ini." }, 429);
+	if (rateLimited(`chat:${userId}:${provider}`)) return json({ error: "RATE_LIMITED: too many requests to this provider." }, 429);
 
 	const apiKey = await decryptKey(row.encrypted_api_key, row.iv, master);
 
@@ -96,7 +96,7 @@ chatApp.post("/chat", async (c) => {
 		if (err instanceof AIError) {
 			return json({ error: err.message, code: err.code, retryable: err.retryable }, httpFor(err.code));
 		}
-		return json({ error: `Terjadi kesalahan memanggil provider: ${err instanceof Error ? err.message : "unknown"}` }, 502);
+		return json({ error: `Provider call failed: ${err instanceof Error ? err.message : "unknown"}` }, 502);
 	}
 });
 
