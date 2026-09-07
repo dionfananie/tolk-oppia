@@ -4,16 +4,16 @@
 // Key TIDAK pernah dikirim ke browser; semua panggilan Deepgram terjadi server-side.
 //
 // Endpoint:
-//   POST /api/dg/tts          { text, voice? }                   -> Response audio/mpeg (proksi Aura)
-//   POST /api/dg/transcribe   body = audio stream (webm/opus)    -> Response SSE transcript
-//   GET  /api/dg/status       -> { hasKey: boolean } (provider deepgram tersambung?)
+//   POST /api/dg/tts          { text, voice? }                -> Response audio/mpeg
+//   POST /api/dg/transcribe   body = recorded microphone audio -> Response JSON transcript
+//   GET  /api/dg/status       -> { hasKey: boolean }
 //
 // Semua butuh login (session cookie). Disusun sebagai Hono app terpisah dari chat.
 
 import { Hono } from "hono";
 import { decryptKey } from "../lib/crypto";
 import { getSessionUser } from "../lib/session";
-import { deepgramSpeak, streamTranscribe } from "../ai/deepgram";
+import { deepgramSpeak, transcribeRecording } from "../ai/deepgram";
 
 const json = (data: unknown, status = 200) =>
 	new Response(JSON.stringify(data), {
@@ -74,33 +74,19 @@ deepgramApp.post("/dg/tts", async (c) => {
 	return deepgramSpeak(key, text, body.voice);
 });
 
-// POST /api/dg/transcribe — proksi STT streaming.
-// Client mengirim body audio (streaming byte), Worker memompa ke Deepgram WS,
-// lalu mengembalikan transcript live sebagai SSE.
-deepgramApp.post("/dg/transcribe", (c) => {
-	// auth & key diambil async di dalam handler karena kita perlu return SSE stream.
-	return (async () => {
-		const userId = await authUser(c);
-		if (!userId) {
-			return json({ error: "unauthorized, sign in required" }, 401);
-		}
-		const key = await deepgramKey(c, userId);
-		if (!key) {
-			return json(
-				{ error: "no_deepgram_key", message: "Save a Deepgram API key in Settings to use Deepgram STT." },
-				404,
-			);
-		}
-		const body = c.req.raw.body;
-		if (!body) return json({ error: "bad request" }, 400);
+deepgramApp.post("/dg/transcribe", async (c) => {
+	const userId = await authUser(c);
+	if (!userId) return json({ error: "unauthorized", message: "Sign in to use Deepgram speech recognition." }, 401);
 
-		const stream = streamTranscribe(key, body);
-		return new Response(stream, {
-			headers: {
-				"content-type": "text/event-stream",
-				"cache-control": "no-store",
-				"connection": "keep-alive",
-			},
-		});
-	})();
+	const key = await deepgramKey(c, userId);
+	if (!key) {
+		return json(
+			{ error: "no_deepgram_key", message: "Save a Deepgram API key in Settings to use Deepgram speech recognition." },
+			404,
+		);
+	}
+	const body = c.req.raw.body;
+	if (!body) return json({ error: "bad_request", message: "No microphone audio was received." }, 400);
+
+	return transcribeRecording(key, body, c.req.header("content-type") ?? "audio/webm");
 });

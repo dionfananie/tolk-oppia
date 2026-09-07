@@ -6,7 +6,7 @@ export type SpeechEvents = {
 };
 
 export type Recognizer = {
-	start: () => void;
+	start: () => boolean;
 	stop: () => void;
 	abort: () => void;
 };
@@ -73,8 +73,9 @@ export function createRecognizer(events: SpeechEvents): Recognizer | null {
 		start: () => {
 			try {
 				rec.start();
+				return true;
 			} catch {
-				// already running
+				return false;
 			}
 		},
 		stop: () => {

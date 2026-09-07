@@ -62,6 +62,44 @@ export async function deepgramSpeak(
 	});
 }
 
+export async function transcribeRecording(
+	apiKey: string,
+	audio: ReadableStream<Uint8Array>,
+	contentType: string,
+): Promise<Response> {
+	const query = new URLSearchParams({
+		model: "nova-2",
+		smart_format: "true",
+		punctuate: "true",
+	});
+	const response = await fetch(`${API}/listen?${query.toString()}`, {
+		method: "POST",
+		headers: {
+			authorization: `Token ${apiKey.trim()}`,
+			"content-type": contentType || "audio/webm",
+		},
+		body: audio,
+	});
+	if (!response.ok) {
+		const detail = await response.text().catch(() => "");
+		return new Response(
+			JSON.stringify({
+				error: "deepgram_transcription_failed",
+				message: `Deepgram speech recognition failed (HTTP ${response.status})${detail ? `: ${detail}` : ""}`,
+			}),
+			{ status: response.status, headers: { "content-type": "application/json" } },
+		);
+	}
+
+	const data = (await response.json()) as {
+		results?: { channels?: Array<{ alternatives?: Array<{ transcript?: string }> }> };
+	};
+	const transcript = data.results?.channels?.[0]?.alternatives?.[0]?.transcript?.trim() ?? "";
+	return new Response(JSON.stringify({ transcript }), {
+		headers: { "content-type": "application/json", "cache-control": "no-store" },
+	});
+}
+
 // ── STT proxy ───────────────────────────────────────────────────────────────────
 // Alur:
 // 1. Auth user + decrypt key (dilakukan di route).

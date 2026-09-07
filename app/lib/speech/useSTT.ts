@@ -32,8 +32,8 @@ export function useSTT(): STTFacade {
 			} else {
 				await webspeech.start(opts);
 			}
-		} catch {
-			// fallback ke Web Speech
+		} catch (cause) {
+			if (!useDg) throw cause;
 			setFallback("webspeech");
 			deepgram.stop();
 			await webspeech.start(opts);

@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { STTController } from "../types";
-import { createRecognizer } from "~/lib/speech-core";
+import { createRecognizer, isSpeechSupported } from "~/lib/speech-core";
 
 export function useWebSpeechSTT(): STTController {
 	const [transcript, setTranscript] = useState("");
@@ -37,14 +37,19 @@ export function useWebSpeechSTT(): STTController {
 			},
 		});
 		if (!rec) {
-			setError("This browser does not support the Web Speech API.");
-			return;
+			const message = "This browser does not support speech recognition.";
+			setError(message);
+			throw new Error(message);
 		}
-		recRef.current?.stop();
+		recRef.current?.abort();
 		recRef.current = rec;
-		rec.start();
-		setIsListening(true);
 		reset();
+		if (!rec.start()) {
+			recRef.current = null;
+			setError("Could not start speech recognition. Please try again.");
+			throw new Error("Could not start speech recognition.");
+		}
+		setIsListening(true);
 	}, [reset]);
 
 	const stop = useCallback(() => {
@@ -62,7 +67,7 @@ export function useWebSpeechSTT(): STTController {
 		transcript,
 		interimTranscript,
 		isListening,
-		isSupported: true,
+		isSupported: isSpeechSupported(),
 		start,
 		stop,
 		error,

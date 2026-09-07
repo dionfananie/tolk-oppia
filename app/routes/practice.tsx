@@ -21,12 +21,7 @@ import {
 	type Setup,
 } from "~/lib/storage";
 import { formatClock } from "~/lib/format";
-import {
-	isSpeechSupported,
-	rateFromSetting,
-	useSTT,
-	useTTS,
-} from "~/lib/speech";
+import { rateFromSetting, useSTT, useTTS } from "~/lib/speech";
 import { Orb, type OrbState } from "~/components/Orb";
 import { Switch } from "~/components/Switch";
 import { TypingIndicator } from "~/components/ChatBubble";
@@ -70,6 +65,7 @@ export default function Practice() {
 	const openedRef = useRef(false);
 	const busyRef = useRef(false);
 	const listeningRef = useRef(false);
+	const startingToListenRef = useRef(false);
 	const orbRef = useRef<OrbState>("idle");
 	const transcriptRef = useRef<HTMLDivElement | null>(null);
 
@@ -84,11 +80,9 @@ export default function Practice() {
 			}
 			: scenario;
 
-	const voiceSupported = isSpeechSupported();
-	const useVoice = mode === "voice" && voiceSupported;
-
 	const stt = useSTT();
 	const tts = useTTS();
+	const voiceSupported = stt.controller.isSupported;
 
 	useEffect(() => {
 		if (!scenario) navigate("/", { replace: true });
@@ -101,7 +95,7 @@ export default function Practice() {
 			getSetup()?.mode ??
 			loadDraft()?.mode ??
 			loadPrefs()?.mode ??
-			(isSpeechSupported() ? "voice" : "text"),
+			(voiceSupported ? "voice" : "text"),
 		);
 	}, []);
 
@@ -150,7 +144,7 @@ export default function Practice() {
 						current?.mode ??
 						loadDraft()?.mode ??
 						loadPrefs()?.mode ??
-						(isSpeechSupported() ? "voice" : "text"),
+						(voiceSupported ? "voice" : "text"),
 				};
 				setSetup(next);
 				setSetupState(next);
@@ -279,20 +273,31 @@ export default function Practice() {
 		}
 	}
 
-	function startListening() {
-		if (busyRef.current || listeningRef.current) return;
+	async function startListening() {
+		if (busyRef.current || listeningRef.current || startingToListenRef.current) return;
 		tts.controller.cancel();
+		startingToListenRef.current = true;
 		listeningRef.current = true;
 		setListening(true);
 		setOrbState("listening");
-		setCaptionText("Listening… tap to stop");
-		void stt.controller.start({
-			onFinal: (text) => {
-				if (!text) return;
-				setCaptionText(text);
-				void send(text);
-			},
-		});
+		setCaptionText("Starting microphone…");
+		try {
+			await stt.controller.start({
+				onFinal: (text) => {
+					if (!text) return;
+					setCaptionText(text);
+					void send(text);
+				},
+			});
+			setCaptionText("Listening… tap to stop");
+		} catch (cause) {
+			listeningRef.current = false;
+			setListening(false);
+			setOrbState("error");
+			setCaptionText(cause instanceof Error ? cause.message : "Could not start the microphone.");
+		} finally {
+			startingToListenRef.current = false;
+		}
 	}
 
 	function stopListening() {
@@ -305,7 +310,7 @@ export default function Practice() {
 			stopListening();
 			return;
 		}
-		startListening();
+		void startListening();
 	}
 
 	// Sinkronkan state `listening` lokal dengan isListening provider aktif (auto-stop Web Speech).
@@ -314,6 +319,7 @@ export default function Practice() {
 			listeningRef.current = true;
 			return;
 		}
+		if (startingToListenRef.current) return;
 		if (listeningRef.current) {
 			listeningRef.current = false;
 			setListening(false);
@@ -334,7 +340,7 @@ export default function Practice() {
 		listeningRef.current = false;
 		setListening(false);
 		if (orbRef.current === "listening") setOrbState("idle");
-		setCaptionText("Didn't catch that. Tap again or type below.");
+		setCaptionText(stt.controller.error);
 	}, [stt.controller.error]);
 
 	async function finish() {
@@ -502,18 +508,18 @@ export default function Practice() {
 
 						<footer className="flex-none pb-4 pt-2">
 							{!voiceSupported && (
-							<p className="rounded-md bg-surface px-3 py-2 text-center text-sm text-muted">
-								Voice needs Chrome, Edge, or Safari. Check your microphone permission, or
-								type your replies instead.
-							</p>
+								<div role="alert" className="alert alert-warning mb-2 text-sm">
+									<span>Voice input is not supported in this browser.</span>
+								</div>
 							)}
 
 							<button
 								type="button"
 								onClick={toggleClickToSpeak}
 								disabled={busy || !voiceSupported}
-								aria-label="Tap to speak"
-								className={`inline-flex min-h-[56px] w-full items-center justify-center gap-2.5 rounded-lg px-6 py-3.5 text-base font-semibold text-paper transition-colors focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-paper focus:outline-none disabled:pointer-events-none disabled:opacity-40 ${listening ? "animate-mic-listen bg-accent-dark" : "bg-accent hover:bg-accent-dark"
+								aria-label={listening ? "Stop listening" : "Start listening"}
+								aria-pressed={listening}
+								className={`btn btn-lg btn-block min-h-[56px] gap-2.5 border-0 px-6 text-base font-semibold text-paper focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-paper ${listening ? "animate-mic-listen bg-accent-dark" : "bg-accent hover:bg-accent-dark"
 									}`}
 							>
 								<IconMic className="size-6" />
