@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { Route } from "./+types/login";
 import { AuthShell } from "~/components/AuthShell";
 import { Button } from "~/components/Button";
@@ -8,9 +9,12 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Login() {
-	const returnTo = typeof window !== "undefined"
-		? window.location.pathname + window.location.search
-		: "/dashboard";
+	const [returnTo, setReturnTo] = useState("/dashboard");
+
+	useEffect(() => {
+		const requested = new URLSearchParams(window.location.search).get("returnTo");
+		if (requested?.startsWith("/") && !requested.startsWith("//")) setReturnTo(requested);
+	}, []);
 
 	return (
 		<AuthShell

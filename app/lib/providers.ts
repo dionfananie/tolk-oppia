@@ -182,12 +182,13 @@ export async function chat(
 
 	const data = (await res.json().catch(() => ({}))) as ChatResponse & {
 		error?: string;
+		message?: string;
 		code?: string;
 	};
 	if (!res.ok) {
-		if (data.code === "no_api_key" || res.status === 404) {
+		if (data.code === "no_api_key" || data.error === "no_api_key") {
 			throw new Error(
-				"No key saved for this provider. Open Settings, then AI providers, and add one.",
+				data.message ?? "No key saved for this provider. Open Settings, then AI providers, and add one.",
 			);
 		}
 		if (data.code === "RATE_LIMITED") {

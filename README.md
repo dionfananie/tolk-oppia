@@ -14,6 +14,7 @@ Each scenario defines your role, the AI's role, an objective, and target vocabul
 ## Features
 
 - **Voice or text practice** with push-to-talk, live captions, and replay of any AI response. Uses the browser's built-in speech engine or Deepgram STT/TTS.
+- **Ready transcripts** for job interviews, self-introductions, and 1-on-1s, so the AI speaks from a fixed script instead of improvising. Upload a CV, PRD, or meeting notes to personalize your interviewee lines, and watch target vocabulary check off live as you speak.
 - **Session feedback** scored across five dimensions: fluency, grammar, vocabulary, clarity, and professionalism, with concrete corrections that explain why the rewrite is better.
 - **Dashboard and progress tracking** with skill trends, streaks, and a recommended next scenario based on your weakest skill.
 - **Vocabulary bank** with definitions and real examples for every target word, plus a daily challenge to keep your streak going.

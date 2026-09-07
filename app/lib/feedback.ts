@@ -164,7 +164,7 @@ export async function generateFeedback(
 				content: `Here is the conversation to analyze:\n\n${transcript}`,
 			},
 		],
-		{ temperature: 0.2, maxTokens: 1600, json: true },
+		{ temperature: 0.2, maxTokens: 2200 },
 	);
 	return parseFeedback(raw);
 }

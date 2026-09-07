@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import type { Route } from "./+types/practice-setup";
 import { AppShell } from "~/components/AppShell";
@@ -6,6 +6,11 @@ import { Button } from "~/components/Button";
 import { Segmented } from "~/components/Segmented";
 import { useAuth, fetchServerKeys } from "~/lib/auth";
 import { getScenario, type EnglishLevel } from "~/data/scenarios";
+import {
+	getReadyTranscriptByScenario,
+	type ReadyTranscript,
+	type TranscriptTurn,
+} from "~/data/transcripts";
 import { isSpeechSupported } from "~/lib/speech-core";
 import {
 	clearDraft,
@@ -15,9 +20,17 @@ import {
 	saveDraft,
 	setSetup,
 	setupReady,
+	type ConversationStyle,
 	type Setup,
 } from "~/lib/storage";
 import { inputClass } from "~/lib/ui";
+import {
+	extractDocumentText,
+	fileKindLabel,
+	SUPPORTED_FILE_HINT,
+	type ExtractResult,
+} from "~/lib/document-extract";
+import { applyPersonalizedTurns, personalizeIntervieweeTranscript } from "~/lib/personalize";
 
 export function meta({ params }: Route.MetaArgs) {
 	const scenario = getScenario(params.scenarioId ?? "");
@@ -36,6 +49,63 @@ function nearestDuration(min: number): string {
 	const options = [5, 10, 15];
 	const best = options.reduce((a, b) => (Math.abs(b - min) < Math.abs(a - min) ? b : a));
 	return String(best);
+}
+
+const FILE_ACCEPT =
+	".txt,.text,.md,.markdown,.pdf,.docx,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+function extractionErrorMessage(result: ExtractResult): string {
+	if (result.ok) return "";
+	switch (result.error) {
+		case "unsupported":
+			return `We can't read that file type. ${SUPPORTED_FILE_HINT}.`;
+		case "empty":
+			return "That file has no readable text. Try one with written content.";
+		case "encrypted":
+			return "That PDF is password-protected. Remove the password and try again.";
+		case "too-large":
+			return "That file is larger than 5 MB. Try a shorter version.";
+		default:
+			return "We couldn't read that file. It may be damaged — try saving it as .txt or .md.";
+	}
+}
+
+function TranscriptPreview({
+	transcript,
+	aiLabel,
+	userLabel,
+}: {
+	transcript: { turns: TranscriptTurn[] };
+	aiLabel: string;
+	userLabel: string;
+}) {
+	return (
+		<div className="max-h-[320px] overflow-y-auto rounded-lg border border-line-soft bg-surface/50 p-3">
+			<ol className="flex flex-col gap-2">
+				{transcript.turns.map((turn, index) => {
+					const isUser = turn.role === "user";
+					const number = Math.floor(index / 2) + 1;
+					return (
+						<li key={`${turn.role}-${index}`} className={`chat ${isUser ? "chat-end" : "chat-start"}`}>
+							<div className={`chat-header text-xs font-semibold ${isUser ? "text-accent" : "text-muted"}`}>
+								{isUser ? userLabel : aiLabel}
+								{isUser ? ` · line ${number}` : ""}
+							</div>
+							<div
+								className={`chat-bubble max-w-[92%] text-sm leading-[1.5] ${
+									isUser
+										? "bg-accent text-accent-content"
+										: "border border-line-soft bg-paper text-ink"
+								}`}
+							>
+								{turn.text}
+							</div>
+						</li>
+					);
+				})}
+			</ol>
+		</div>
+	);
 }
 
 export default function PracticeSetup() {
@@ -60,21 +130,51 @@ export default function PracticeSetup() {
 	const [configured, setConfigured] = useState(setupReady(existing));
 	const [providerLoading, setProviderLoading] = useState(true);
 
+	const baseTranscript = scenario ? getReadyTranscriptByScenario(scenario.id) : undefined;
+	const readyEnabled = Boolean(baseTranscript);
+
+	// Conversation style + optional personalization (ready mode only).
+	const [style, setStyle] = useState<ConversationStyle>("spontaneous");
+	const [personalized, setPersonalized] = useState<string[] | null>(null);
+	const [sourceFile, setSourceFile] = useState<File | null>(null);
+	const [sourceFileName, setSourceFileName] = useState<string | null>(null);
+	const [personalizing, setPersonalizing] = useState<string | null>(null);
+	const [fileError, setFileError] = useState<string | null>(null);
+	const [generatedAt, setGeneratedAt] = useState<string | null>(null);
+
 	useEffect(() => {
 		if (!scenario) navigate("/practice", { replace: true });
 	}, [scenario, navigate]);
 
+	// Reset ready-specific state, then restore a matching draft for this
+	// scenario (roles, duration, mode, style, personalization). Runs whenever
+	// the scenario id changes, including the first mount.
 	useEffect(() => {
 		if (!scenario) return;
 		const draft = loadDraft();
-		if (draft?.scenarioId === scenario.id) {
-			if (draft.userRole) setUserRole(draft.userRole);
-			if (draft.aiRole) setAiRole(draft.aiRole);
-			if (draft.objective) setGoal(draft.objective);
-			setDuration(nearestDuration(draft.durationMin));
-			setMode(draft.mode);
+		const matching = draft?.scenarioId === scenario.id;
+
+		setUserRole(matching && draft.userRole ? draft.userRole : scenario.userRole);
+		setAiRole(matching && draft.aiRole ? draft.aiRole : scenario.aiRole);
+		setGoal(matching && draft.objective ? draft.objective : scenario.objective);
+		setDuration(matching ? nearestDuration(draft.durationMin) : nearestDuration(scenario.durationMin));
+		if (matching && draft.mode) setMode(draft.mode);
+
+		const draftReady = matching && draft.conversationStyle === "ready" && Boolean(baseTranscript);
+		setStyle(draftReady ? "ready" : "spontaneous");
+		setPersonalized(null);
+		setSourceFile(null);
+		setSourceFileName(null);
+		setFileError(null);
+		setGeneratedAt(null);
+		if (draftReady) {
+			const userTexts = (draft.readyTurns ?? [])
+				.filter((turn) => turn.role === "user")
+				.map((turn) => turn.text);
+			if (userTexts.length > 0) setPersonalized(userTexts);
 		}
-	}, [scenario]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [scenario?.id]);
 
 	// Tarik key server saat login — agar tak perlu input key lagi utk mulai practice.
 	useEffect(() => {
@@ -127,6 +227,17 @@ export default function PracticeSetup() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [authLoading, user]);
 
+	const effectiveTurns = useMemo<TranscriptTurn[] | null>(() => {
+		if (!baseTranscript) return null;
+		if (personalized) return applyPersonalizedTurns(baseTranscript, personalized);
+		return baseTranscript.turns;
+	}, [baseTranscript, personalized]);
+
+	const effectiveTranscript: ReadyTranscript | null = useMemo(() => {
+		if (!baseTranscript || !effectiveTurns) return null;
+		return { ...baseTranscript, turns: effectiveTurns };
+	}, [baseTranscript, effectiveTurns]);
+
 	if (!scenario) return null;
 
 	function start() {
@@ -148,9 +259,62 @@ export default function PracticeSetup() {
 			objective: goal.trim(),
 			durationMin: Number(duration),
 			mode,
+			conversationStyle: style,
+			...(style === "ready" && effectiveTurns ? { readyTurns: effectiveTurns } : {}),
 		});
 		navigate(`/practice/${scenario.id}`);
 	}
+
+	function chooseFile(file: File | null) {
+		setSourceFile(file);
+		setFileError(null);
+		setGeneratedAt(null);
+		setSourceFileName(null);
+		// Any document change (or removal) resets personalization until the
+		// user generates again, so the transcript always matches the file.
+		setPersonalized(null);
+	}
+
+	async function generateFromFile() {
+		if (!sourceFile) return;
+		const base = provider ?? existing;
+		if (!setupReady(base) || !base || !baseTranscript) return;
+		if (personalizing) return;
+
+		setFileError(null);
+		setPersonalizing(`Reading ${sourceFile.name}…`);
+		const extracted = await extractDocumentText(sourceFile);
+		if (!extracted.ok) {
+			setPersonalizing(null);
+			setFileError(extractionErrorMessage(extracted));
+			return;
+		}
+
+		setPersonalizing("Writing your interviewee lines…");
+		const outcome = await personalizeIntervieweeTranscript(
+			{ provider: base.provider, model: base.model },
+			baseTranscript,
+			{
+				documentName: sourceFile.name,
+				documentText: extracted.text,
+				level: difficulty,
+			},
+		);
+		setPersonalizing(null);
+		if (outcome.ok) {
+			setPersonalized(outcome.userTurns);
+			setSourceFileName(sourceFile.name);
+			setGeneratedAt(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+		} else {
+			setFileError(outcome.reason);
+		}
+	}
+
+	const userTurnCount = baseTranscript
+		? baseTranscript.turns.filter((t) => t.role === "user").length
+		: 0;
+	const userLabel = scenario.userRole || "You";
+	const aiLabel = scenario.aiRole || "Other person";
 
 	return (
 		<AppShell active="practice">
@@ -162,7 +326,11 @@ export default function PracticeSetup() {
 					<h1 className="mt-2 font-display text-[clamp(28px,3.4vw,40px)] font-semibold tracking-[-0.015em] text-ink">
 						{scenario.title}
 					</h1>
-					<p className="mt-3 text-muted">Two quick choices and you&rsquo;re in.</p>
+					<p className="mt-3 text-muted">
+						{readyEnabled
+							? "Choose how the conversation runs, then jump in."
+							: "Two quick choices and you’re in."}
+					</p>
 				</div>
 
 				<div className="mt-6 rounded-lg border border-line bg-paper p-6">
@@ -226,6 +394,186 @@ export default function PracticeSetup() {
 						/>
 					</div>
 
+					{readyEnabled && (
+						<>
+							<div className="mt-6 border-t border-line-soft pt-5">
+								<div className="flex flex-col gap-3">
+									<div>
+										<p className="text-sm font-semibold text-ink">Conversation style</p>
+										<p className="mt-0.5 text-sm text-muted">
+											How the {aiLabel.toLowerCase()} talks with you.
+										</p>
+									</div>
+
+									<label
+										className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors focus-within:ring-2 focus-within:ring-accent focus-within:ring-offset-2 focus-within:ring-offset-paper ${
+											style === "spontaneous"
+												? "border-accent bg-accent/5"
+												: "border-line bg-paper hover:bg-surface"
+										}`}
+									>
+										<input
+											type="radio"
+											name="conversation-style"
+											className="radio radio-accent mt-0.5 flex-none"
+											checked={style === "spontaneous"}
+											onChange={() => setStyle("spontaneous")}
+										/>
+										<span>
+											<span className="block text-sm font-semibold text-ink">Spontaneous</span>
+											<span className="mt-1 block text-sm leading-[1.5] text-muted">
+												The {aiLabel.toLowerCase()} improvises in character and follows wherever
+												your answers go.
+											</span>
+										</span>
+									</label>
+
+									<label
+										className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors focus-within:ring-2 focus-within:ring-accent focus-within:ring-offset-2 focus-within:ring-offset-paper ${
+											style === "ready"
+												? "border-accent bg-accent/5"
+												: "border-line bg-paper hover:bg-surface"
+										}`}
+									>
+										<input
+											type="radio"
+											name="conversation-style"
+											className="radio radio-accent mt-0.5 flex-none"
+											checked={style === "ready"}
+											onChange={() => setStyle("ready")}
+										/>
+										<span>
+											<span className="block text-sm font-semibold text-ink">Ready transcript</span>
+											<span className="mt-1 block text-sm leading-[1.5] text-muted">
+												The {aiLabel.toLowerCase()} speaks only from a fixed transcript — no
+												improvisation. {baseTranscript
+													? `${baseTranscript.turns.length} lines, ${userTurnCount} for you.`
+													: ""}
+											</span>
+										</span>
+									</label>
+								</div>
+							</div>
+
+							{style === "ready" && effectiveTranscript && (
+								<div className="mt-5 border-t border-line-soft pt-5">
+									<div className="flex flex-wrap items-baseline justify-between gap-2">
+										<div>
+											<h2 className="text-sm font-semibold text-ink">Ready transcript</h2>
+											<p className="mt-0.5 max-w-[460px] text-sm text-muted">
+												{effectiveTranscript.description}
+											</p>
+										</div>
+										<span className="badge badge-outline text-xs font-medium text-muted">
+											You reply in your own words
+										</span>
+									</div>
+
+									<p className="mt-3 text-xs font-semibold uppercase tracking-[0.1em] text-meta">
+										Preview
+									</p>
+									<div className="mt-2">
+										<TranscriptPreview
+											transcript={effectiveTranscript}
+											aiLabel={aiLabel}
+											userLabel={userLabel}
+										/>
+									</div>
+									<p className="mt-3 text-sm leading-[1.5] text-muted">
+										Your interviewee lines are speaking cues, not scripts to recite. Read each cue,
+										then answer in your own words — that’s what gets scored.
+									</p>
+								</div>
+							)}
+
+							{style === "ready" && baseTranscript && (
+								<div className="mt-5 border-t border-line-soft pt-5">
+									<div className="flex flex-wrap items-baseline justify-between gap-2">
+										<div>
+											<h2 className="text-sm font-semibold text-ink">
+												Base it on your own document
+											</h2>
+											<p className="mt-0.5 max-w-[480px] text-sm text-muted">
+												Upload a CV, a PRD, or meeting notes, and your interviewee cues are
+												rewritten around the real facts in it.
+											</p>
+										</div>
+										<span className="badge badge-soft text-xs font-medium text-muted">Optional</span>
+									</div>
+
+									<div className="mt-3 flex flex-col gap-3">
+										<input
+											id="doc-upload"
+											type="file"
+											accept={FILE_ACCEPT}
+											className="file-input file-input-md w-full border-line bg-paper text-sm text-ink focus:border-accent"
+											aria-label="Upload a document to personalize your lines"
+											onChange={(event) => chooseFile(event.target.files?.[0] ?? null)}
+										/>
+										{sourceFile && (
+											<div className="flex flex-wrap items-center gap-2 rounded-lg border border-line-soft bg-surface/60 px-3 py-2">
+												<span className="badge badge-outline badge-sm text-xs font-semibold text-ink-2">
+													{fileKindLabel(sourceFile.name)}
+												</span>
+												<span className="min-w-0 flex-1 truncate text-sm text-ink-2">
+													{sourceFile.name}
+												</span>
+											</div>
+										)}
+
+										{!personalizing && fileError && (
+											<div role="alert" className="alert alert-error alert-soft text-sm">
+												<span>{fileError}</span>
+											</div>
+										)}
+
+										{personalizing && (
+											<p className="flex items-center gap-2 text-sm text-muted" aria-live="polite">
+												<span className="loading loading-spinner loading-sm text-accent" aria-hidden />
+												{personalizing}
+											</p>
+										)}
+
+										{generatedAt && (
+											<div role="status" className="alert alert-success alert-soft text-sm">
+												<span>
+													Your interviewee cues now use details from{" "}
+													<strong className="font-semibold text-ink">{sourceFileName}</strong>.
+												</span>
+											</div>
+										)}
+
+										<div className="flex flex-wrap items-center gap-3">
+											<Button
+												onClick={() => void generateFromFile()}
+												disabled={!sourceFile || !configured || Boolean(personalizing) || providerLoading}
+												size="md"
+												variant={generatedAt ? "secondary" : "primary"}
+											>
+												{generatedAt
+													? "Regenerate from this document"
+													: "Generate my interviewee lines"}
+											</Button>
+											{sourceFile && (
+												<button
+													type="button"
+													onClick={() => chooseFile(null)}
+													className="text-sm font-semibold text-muted underline-offset-2 transition hover:text-ink hover:underline focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-paper focus:outline-none"
+												>
+													{generatedAt ? "Remove and use the default transcript" : "Remove"}
+												</button>
+											)}
+										</div>
+										<p className="text-xs leading-[1.5] text-meta">
+											Your file stays in this browser — only extracted text goes to your AI
+											provider to write the cues, and nothing is stored.
+										</p>
+									</div>
+								</div>
+							)}
+						</>
+					)}
+
 					<div className="mt-5 flex flex-col gap-2">
 						<p className="text-sm font-semibold text-ink">Target vocabulary</p>
 						<div className="flex flex-wrap gap-2">
@@ -243,7 +591,9 @@ export default function PracticeSetup() {
 							)}
 						</div>
 						<p className="text-sm text-muted">
-							The AI will weave these in naturally. No need to memorize them first.
+							{style === "ready"
+								? "Use these in your replies — we’ll track them live during practice."
+								: "The AI will weave these in naturally. No need to memorize them first."}
 						</p>
 					</div>
 
@@ -265,7 +615,10 @@ export default function PracticeSetup() {
 						</Button>
 					)}
 					<p className="mt-3 text-center text-sm text-muted">
-						<Link to={`/practice/${scenario.id}`} className="font-semibold text-accent transition hover:text-accent-dark">
+						<Link
+							to={`/practice/${scenario.id}`}
+							className="font-semibold text-accent transition hover:text-accent-dark"
+						>
 							Skip setup and start directly
 						</Link>
 					</p>

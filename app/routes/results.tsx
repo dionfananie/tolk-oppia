@@ -17,7 +17,6 @@ import {
 	getSetup,
 	saveSession,
 	setSetup,
-	setupReady,
 	type Session,
 } from "~/lib/storage";
 import { formatDateTime, formatDuration } from "~/lib/format";
@@ -74,26 +73,36 @@ function ResultsView({
 }) {
 	const navigate = useNavigate();
 	const [busy, setBusy] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	const [error, setError] = useState<string | null>(session.feedbackError ?? null);
 
 	const scenario = getScenario(session.scenarioId);
 	const setup = getSetup();
-	const canRetry = Boolean(setupReady(setup) && session.feedback === null);
+	const canRetry = Boolean(scenario && session.feedback === null && session.messages.length > 0);
 	const dimensionRows = session.feedback
 		? DIMENSION_ORDER.map((d) => ({ label: d.label, value: session.feedback!.scores[d.key] }))
 		: [];
 
 	async function retryFeedback() {
-		if (!setupReady(setup) || !setup || !scenario || busy) return;
+		if (!scenario || session.messages.length === 0 || busy) return;
 		setBusy(true);
 		setError(null);
 		try {
-			const feedback = await generateFeedback(setup, scenario, session.level, session.messages);
+			const feedback = await generateFeedback(
+				{ provider: session.provider, model: session.model },
+				scenario,
+				session.level,
+				session.messages,
+			);
 			const updated: Session = { ...session, score: overallScore(feedback), feedback };
+			delete updated.feedbackError;
 			saveSession(updated);
 			onChange(updated);
 		} catch (cause) {
-			setError(cause instanceof Error ? cause.message : "Could not generate feedback.");
+			const message = cause instanceof Error ? cause.message : "Could not generate feedback.";
+			const updated = { ...session, feedbackError: message };
+			saveSession(updated);
+			onChange(updated);
+			setError(message);
 		} finally {
 			setBusy(false);
 		}
@@ -235,13 +244,17 @@ function ResultsView({
 			) : (
 				<div className="mt-6 rounded-lg border border-line bg-paper">
 					<EmptyState
-						title="Feedback wasn't generated"
-						body="Your conversation was saved, but we couldn't analyze it. If your API key is still active in this session, you can try again."
+						title="Feedback is not ready"
+						body="Your conversation is saved. Generate the analysis now, or return to it later."
 					>
-						{error && <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
+						{error && (
+							<div role="alert" aria-live="polite" className="alert alert-error alert-soft text-left text-sm">
+								<span>{error}</span>
+							</div>
+						)}
 						{canRetry && (
 							<Button onClick={() => void retryFeedback()} disabled={busy}>
-								{busy ? "Analyzing…" : "Try again"}
+								{busy ? "Generating feedback…" : "Generate feedback"}
 							</Button>
 						)}
 						<Button to="/practice" variant="secondary">

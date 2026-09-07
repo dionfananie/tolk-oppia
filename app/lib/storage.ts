@@ -1,8 +1,12 @@
 import type { EnglishLevel } from "~/data/scenarios";
 import type { ChatMessage } from "~/lib/providers";
 import type { Feedback } from "~/lib/feedback";
+import type { TranscriptTurn } from "~/data/transcripts";
 
 export type ProviderName = "openai" | "deepseek" | "anthropic" | "gemini" | "openrouter" | "groq" | "together";
+
+/** How the AI conversation partner behaves during a practice session. */
+export type ConversationStyle = "spontaneous" | "ready";
 
 export type Setup = {
 	level: EnglishLevel;
@@ -35,6 +39,7 @@ export type Session = {
 	messages: ChatMessage[];
 	score: number;
 	feedback: Feedback | null;
+	feedbackError?: string;
 };
 
 type Prefs = {
@@ -216,6 +221,11 @@ export type SessionDraft = {
 	objective: string;
 	durationMin: number;
 	mode: "voice" | "text";
+	/** Defaults to "spontaneous" when absent (backward compatible). */
+	conversationStyle?: ConversationStyle;
+	/** Full turn list when conversationStyle === "ready". Falls back to the
+	 *  built-in transcript for the scenario when absent. */
+	readyTurns?: TranscriptTurn[];
 };
 
 export function saveDraft(draft: SessionDraft): void {
@@ -234,6 +244,23 @@ export function loadDraft(): SessionDraft | null {
 		if (!raw) return null;
 		const parsed = JSON.parse(raw) as Partial<SessionDraft>;
 		if (typeof parsed.scenarioId !== "string") return null;
+
+		let readyTurns: TranscriptTurn[] | undefined;
+		if (parsed.conversationStyle === "ready" && Array.isArray(parsed.readyTurns)) {
+			const turns: TranscriptTurn[] = [];
+			for (const turn of parsed.readyTurns as Partial<TranscriptTurn>[]) {
+				if (
+					turn &&
+					(turn.role === "user" || turn.role === "assistant") &&
+					typeof turn.text === "string" &&
+					turn.text.trim()
+				) {
+					turns.push({ role: turn.role, text: turn.text.trim() });
+				}
+			}
+			if (turns.length > 0) readyTurns = turns;
+		}
+
 		return {
 			scenarioId: parsed.scenarioId,
 			userRole: typeof parsed.userRole === "string" ? parsed.userRole : "",
@@ -241,6 +268,9 @@ export function loadDraft(): SessionDraft | null {
 			objective: typeof parsed.objective === "string" ? parsed.objective : "",
 			durationMin: typeof parsed.durationMin === "number" ? parsed.durationMin : 10,
 			mode: parsed.mode === "voice" ? "voice" : "text",
+			conversationStyle:
+				parsed.conversationStyle === "ready" ? "ready" : "spontaneous",
+			...(readyTurns ? { readyTurns } : {}),
 		};
 	} catch {
 		return null;
