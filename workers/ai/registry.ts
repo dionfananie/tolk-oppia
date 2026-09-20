@@ -31,6 +31,18 @@ export const PROVIDERS: ProviderConfig[] = [
 		],
 	},
 	{
+		id: "alibaba",
+		name: "Alibaba Cloud Model Studio",
+		adapter: "openai-compatible",
+		baseURL: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+		supports: { streaming: true, tools: true, vision: true },
+		models: [
+			{ id: "qwen3.7-flash", name: "Qwen 3.7 Flash", capabilities: { chat: true, vision: false, tools: true, structuredOutput: true } },
+			{ id: "qwen3.8-flash", name: "Qwen 3.8 Flash", capabilities: { chat: true, vision: false, tools: true, structuredOutput: true } },
+			{ id: "qwen3.8-max", name: "Qwen 3.8 Max", capabilities: { chat: true, vision: false, tools: true, structuredOutput: true } },
+		],
+	},
+	{
 		id: "anthropic",
 		name: "Anthropic (Claude)",
 		adapter: "openai-compatible",

@@ -8,83 +8,87 @@ export function meta({}: Route.MetaArgs) {
 	return [{ title: "Admin · TOLK" }];
 }
 
-type PlatformProvider = {
+type Config = {
+	scope: "llm" | "voice";
 	provider: string;
 	label: string;
 	default_model: string | null;
+	stt_model: string | null;
+	tts_model: string | null;
 	base_url: string | null;
 	key_hint: string;
 	enabled: number;
 	last_validated_at: number | null;
 };
 
-const PROVIDERS = [
-	{ id: "deepseek", label: "DeepSeek", model: "deepseek-v4-flash", baseURL: "" },
-	{ id: "deepgram", label: "Deepgram", model: "", baseURL: "" },
-	{
-		id: "alibaba",
-		label: "Alibaba Cloud Qwen TTS",
-		model: "qwen3-tts-flash",
-		baseURL: "https://dashscope-intl.aliyuncs.com/api/v1",
-	},
-] as const;
+const DEFAULT_LLM = {
+	model: "deepseek-v4-flash",
+	baseURL: "https://api.deepseek.com/v1",
+};
+
+const DEFAULT_VOICE = {
+	sttModel: "qwen3-asr-flash",
+	ttsModel: "qwen3-tts-flash",
+	baseURL: "https://dashscope-intl.aliyuncs.com/api/v1",
+};
 
 export default function Admin() {
 	const { user, loading } = useAuth();
-	const [providers, setProviders] = useState<PlatformProvider[]>([]);
-	const [selected, setSelected] = useState<string>(PROVIDERS[0].id);
-	const [apiKey, setApiKey] = useState<string>("");
-	const [model, setModel] = useState<string>(PROVIDERS[0].model);
-	const [baseURL, setBaseURL] = useState<string>(PROVIDERS[0].baseURL);
+	const [configs, setConfigs] = useState<Config[]>([]);
+	const [llmKey, setLlmKey] = useState("");
+	const [llmModel, setLlmModel] = useState(DEFAULT_LLM.model);
+	const [llmBaseURL, setLlmBaseURL] = useState(DEFAULT_LLM.baseURL);
+	const [voiceKey, setVoiceKey] = useState("");
+	const [sttModel, setSttModel] = useState(DEFAULT_VOICE.sttModel);
+	const [ttsModel, setTtsModel] = useState(DEFAULT_VOICE.ttsModel);
+	const [voiceBaseURL, setVoiceBaseURL] = useState(DEFAULT_VOICE.baseURL);
+	const [busy, setBusy] = useState<"llm" | "voice" | null>(null);
 	const [message, setMessage] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
-	const [busy, setBusy] = useState(false);
 
-	useEffect(() => {
-		const config = PROVIDERS.find((item) => item.id === selected) ?? PROVIDERS[0];
-		setModel(config.model);
-		setBaseURL(config.baseURL);
-		setApiKey("");
-	}, [selected]);
+	async function loadConfigs() {
+		const response = await fetch("/api/admin/config", { credentials: "same-origin" });
+		const data = (await response.json().catch(() => ({}))) as { configs?: Config[]; error?: string };
+		if (!response.ok) throw new Error(data.error || "Could not load hosted configuration.");
+		setConfigs(data.configs ?? []);
+	}
 
 	useEffect(() => {
 		if (!user) return;
-		void fetch("/api/admin/providers", { credentials: "same-origin" })
-			.then(async (res) => {
-				const data = (await res.json().catch(() => ({}))) as { providers?: PlatformProvider[]; error?: string };
-				if (!res.ok) throw new Error(data.error || "Could not load admin providers.");
-				setProviders(data.providers ?? []);
-			})
-			.catch((cause) => setError(cause instanceof Error ? cause.message : "Could not load admin providers."));
+		void loadConfigs().catch((cause) => {
+			setError(cause instanceof Error ? cause.message : "Could not load hosted configuration.");
+		});
 	}, [user]);
 
-	async function saveProvider(event: React.FormEvent) {
-		event.preventDefault();
-		if (!apiKey.trim()) {
-			setError("Enter a provider API key first.");
+	async function save(scope: "llm" | "voice") {
+		const apiKey = scope === "llm" ? llmKey.trim() : voiceKey.trim();
+		if (!apiKey) {
+			setError(scope === "llm" ? "Masukkan DeepSeek API key." : "Masukkan Alibaba Cloud API key.");
 			return;
 		}
-		setBusy(true);
+		setBusy(scope);
 		setError(null);
 		setMessage(null);
 		try {
-			const res = await fetch("/api/admin/providers", {
+			const body = scope === "llm"
+				? { scope, apiKey, model: llmModel, baseURL: llmBaseURL }
+				: { scope, apiKey, sttModel, ttsModel, baseURL: voiceBaseURL };
+			const response = await fetch("/api/admin/config", {
 				method: "POST",
-				headers: { "content-type": "application/json" },
 				credentials: "same-origin",
-				body: JSON.stringify({ provider: selected, apiKey, model, baseURL }),
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify(body),
 			});
-			const data = (await res.json().catch(() => ({}))) as { error?: string; keyHint?: string };
-			if (!res.ok) throw new Error(data.error || "Could not save provider.");
-			setApiKey("");
-			setMessage(`${selected} saved and validated (${data.keyHint ?? "masked key"}).`);
-			const refreshed = await fetch("/api/admin/providers", { credentials: "same-origin" });
-			const next = (await refreshed.json()) as { providers?: PlatformProvider[] };
-			setProviders(next.providers ?? []);
+			const data = (await response.json().catch(() => ({}))) as { error?: string; keyHint?: string };
+			if (!response.ok) throw new Error(data.error || "Could not validate and save configuration.");
+			if (scope === "llm") setLlmKey("");
+			else setVoiceKey("");
+			setMessage(`${scope === "llm" ? "Hosted LLM" : "Hosted Voice"} tersimpan dan tervalidasi (${data.keyHint ?? "masked key"}).`);
+			await loadConfigs();
 		} catch (cause) {
-			setError(cause instanceof Error ? cause.message : "Could not save provider.");
+			setError(cause instanceof Error ? cause.message : "Could not save hosted configuration.");
 		} finally {
-			setBusy(false);
+			setBusy(null);
 		}
 	}
 
@@ -98,40 +102,44 @@ export default function Admin() {
 
 	return (
 		<AppShell active="settings">
-			<div className="max-w-[760px]">
+			<div className="max-w-[820px]">
 				<div className="mb-10">
 					<p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-primary">Platform only</p>
-					<h1 className="mt-3 font-display text-4xl font-semibold tracking-tight">Hosted provider keys</h1>
-					<p className="mt-3 max-w-[62ch] leading-7 text-base-content/65">
-						Keys here are used only for paid Core and Voice plans. BYOK users continue using credentials saved in their own Settings.
-					</p>
+					<h1 className="mt-3 font-display text-4xl font-semibold tracking-tight">Hosted configuration</h1>
+					<p className="mt-3 max-w-[62ch] leading-7 text-base-content/65">BYOK tetap memakai key user. Konfigurasi di halaman ini hanya dipakai oleh paket hosted berbayar.</p>
 				</div>
 
-				<form onSubmit={saveProvider} className="rounded-2xl border border-base-300 bg-base-100 p-6 sm:p-8">
-					<label className="block text-sm font-semibold" htmlFor="admin-provider">Provider</label>
-					<select id="admin-provider" value={selected} onChange={(event) => setSelected(event.target.value)} className="mt-2 h-12 w-full rounded-lg border border-base-300 bg-base-100 px-3 text-base-content focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25">
-						{PROVIDERS.map((provider) => <option key={provider.id} value={provider.id}>{provider.label}</option>)}
-					</select>
+				<div className="grid gap-6 lg:grid-cols-2">
+					<section className="rounded-2xl border border-base-300 bg-base-100 p-6 sm:p-8" aria-labelledby="hosted-llm">
+						<h2 id="hosted-llm" className="font-display text-2xl font-semibold">Hosted LLM</h2>
+						<p className="mt-2 text-sm leading-6 text-base-content/60">DeepSeek dipakai untuk model AI agent hosted.</p>
+						<label className="mt-6 block text-sm font-semibold" htmlFor="llm-model">Model</label>
+						<input id="llm-model" value={llmModel} onChange={(event) => setLlmModel(event.target.value)} className="mt-2 h-11 w-full rounded-lg border border-base-300 bg-base-100 px-3" />
+						<label className="mt-4 block text-sm font-semibold" htmlFor="llm-url">Base URL</label>
+						<input id="llm-url" value={llmBaseURL} onChange={(event) => setLlmBaseURL(event.target.value)} className="mt-2 h-11 w-full rounded-lg border border-base-300 bg-base-100 px-3" />
+						<label className="mt-4 block text-sm font-semibold" htmlFor="llm-key">DeepSeek API key</label>
+						<input id="llm-key" type="password" autoComplete="new-password" value={llmKey} onChange={(event) => setLlmKey(event.target.value)} placeholder="Masukkan key baru" className="mt-2 h-11 w-full rounded-lg border border-base-300 bg-base-100 px-3" />
+						<Button type="button" className="mt-6" disabled={busy !== null} onClick={() => void save("llm")}>{busy === "llm" ? "Validating…" : "Validate and save"}</Button>
+					</section>
 
-					<label className="mt-5 block text-sm font-semibold" htmlFor="admin-model">Default model</label>
-					<input id="admin-model" value={model} onChange={(event) => setModel(event.target.value)} className="mt-2 h-12 w-full rounded-lg border border-base-300 bg-base-100 px-3 text-base-content focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25" />
+					<section className="rounded-2xl border border-base-300 bg-base-100 p-6 sm:p-8" aria-labelledby="hosted-voice">
+						<h2 id="hosted-voice" className="font-display text-2xl font-semibold">Hosted STT + TTS</h2>
+						<p className="mt-2 text-sm leading-6 text-base-content/60">Satu Alibaba Cloud key dipakai bersama untuk Qwen ASR dan Qwen TTS.</p>
+						<label className="mt-6 block text-sm font-semibold" htmlFor="voice-stt">STT model</label>
+						<input id="voice-stt" value={sttModel} onChange={(event) => setSttModel(event.target.value)} className="mt-2 h-11 w-full rounded-lg border border-base-300 bg-base-100 px-3" />
+						<label className="mt-4 block text-sm font-semibold" htmlFor="voice-tts">TTS model</label>
+						<input id="voice-tts" value={ttsModel} onChange={(event) => setTtsModel(event.target.value)} className="mt-2 h-11 w-full rounded-lg border border-base-300 bg-base-100 px-3" />
+						<label className="mt-4 block text-sm font-semibold" htmlFor="voice-url">Base URL</label>
+						<input id="voice-url" value={voiceBaseURL} onChange={(event) => setVoiceBaseURL(event.target.value)} className="mt-2 h-11 w-full rounded-lg border border-base-300 bg-base-100 px-3" />
+						<label className="mt-4 block text-sm font-semibold" htmlFor="voice-key">Alibaba Cloud API key</label>
+						<input id="voice-key" type="password" autoComplete="new-password" value={voiceKey} onChange={(event) => setVoiceKey(event.target.value)} placeholder="Masukkan key baru" className="mt-2 h-11 w-full rounded-lg border border-base-300 bg-base-100 px-3" />
+						<Button type="button" className="mt-6" disabled={busy !== null} onClick={() => void save("voice")}>{busy === "voice" ? "Validating…" : "Validate and save"}</Button>
+					</section>
+				</div>
 
-					<label className="mt-5 block text-sm font-semibold" htmlFor="admin-base-url">Base URL <span className="font-normal text-base-content/50">(optional)</span></label>
-					<input id="admin-base-url" value={baseURL} onChange={(event) => setBaseURL(event.target.value)} className="mt-2 h-12 w-full rounded-lg border border-base-300 bg-base-100 px-3 text-base-content focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25" />
-
-					<label className="mt-5 block text-sm font-semibold" htmlFor="admin-api-key">API key</label>
-					<input id="admin-api-key" type="password" autoComplete="new-password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="Enter a new key to replace the stored key" className="mt-2 h-12 w-full rounded-lg border border-base-300 bg-base-100 px-3 text-base-content focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25" />
-					<p className="mt-2 text-xs leading-5 text-base-content/55">The full key is sent only to the server, encrypted, and never returned to the browser.</p>
-
-					{error && <p role="alert" className="mt-5 rounded-lg bg-error/10 px-4 py-3 text-sm text-error">{error}</p>}
-					{message && <p role="status" className="mt-5 rounded-lg bg-success/10 px-4 py-3 text-sm text-success">{message}</p>}
-					<Button type="submit" className="mt-6" disabled={busy}>{busy ? "Validating and saving…" : "Validate and save key"}</Button>
-				</form>
-
-				<section className="mt-8" aria-labelledby="configured-providers">
-					<h2 id="configured-providers" className="font-display text-2xl font-semibold">Configured hosted providers</h2>
-					{providers.length === 0 ? <p className="mt-3 text-sm text-base-content/60">No platform providers configured yet.</p> : <ul className="mt-4 divide-y divide-base-300 rounded-xl border border-base-300">{providers.map((provider) => <li key={provider.provider} className="flex flex-wrap items-center justify-between gap-3 px-4 py-4"><span className="font-semibold">{provider.provider}</span><span className="font-mono text-sm text-base-content/60">{provider.key_hint}</span></li>)}</ul>}
-				</section>
+				{error && <p role="alert" className="mt-6 rounded-lg bg-error/10 px-4 py-3 text-sm text-error">{error}</p>}
+				{message && <p role="status" className="mt-6 rounded-lg bg-success/10 px-4 py-3 text-sm text-success">{message}</p>}
+				<section className="mt-8" aria-labelledby="configured"><h2 id="configured" className="font-display text-2xl font-semibold">Configured scopes</h2>{configs.length === 0 ? <p className="mt-3 text-sm text-base-content/60">Belum ada konfigurasi platform.</p> : <ul className="mt-4 divide-y divide-base-300 rounded-xl border border-base-300">{configs.map((config) => <li key={config.scope} className="flex flex-wrap items-center justify-between gap-3 px-4 py-4"><span><strong>{config.scope === "llm" ? "Hosted LLM · DeepSeek" : "Hosted Voice · Alibaba Qwen"}</strong><br /><span className="text-sm text-base-content/60">{config.key_hint}</span></span><span className="text-sm text-success">Validated</span></li>)}</ul>}</section>
 			</div>
 		</AppShell>
 	);

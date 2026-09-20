@@ -9,7 +9,8 @@ export type AIProviderId =
 	| "gemini"
 	| "openrouter"
 	| "groq"
-	| "together";
+	| "together"
+	| "alibaba";
 
 export type AIAdapter = "openai-compatible" | "anthropic" | "gemini" | "openrouter";
 

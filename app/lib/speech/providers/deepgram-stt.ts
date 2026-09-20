@@ -39,7 +39,7 @@ export function useDeepgramSTT(): STTController {
 		const request = new AbortController();
 		requestRef.current = request;
 		try {
-			const response = await fetch("/api/dg/transcribe", {
+			const response = await fetch("/api/voice/transcribe", {
 				method: "POST",
 				credentials: "same-origin",
 				headers: { "content-type": audio.type || "audio/webm" },

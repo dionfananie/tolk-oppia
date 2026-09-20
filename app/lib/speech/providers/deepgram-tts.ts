@@ -24,7 +24,7 @@ export function useDeepgramTTS(): TTSController {
 			const voice = opts?.voice ?? "aura-asteria-en";
 			setError(null);
 			try {
-				const res = await fetch("/api/dg/tts", {
+				const res = await fetch("/api/voice/tts", {
 					method: "POST",
 					credentials: "same-origin",
 					headers: { "content-type": "application/json" },

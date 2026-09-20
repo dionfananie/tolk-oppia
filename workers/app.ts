@@ -6,6 +6,7 @@ import { providersApp } from "./api/providers";
 import { deepgramApp } from "./api/deepgram";
 import { billingApp } from "./api/billing";
 import { adminApp } from "./api/admin";
+import { voiceApp } from "./api/voice";
 
 declare module "react-router" {
 	export interface AppLoadContext {
@@ -28,6 +29,7 @@ apiApp.route("/", chatApp);
 apiApp.route("/", deepgramApp);
 apiApp.route("/", billingApp);
 apiApp.route("/", adminApp);
+apiApp.route("/", voiceApp);
 
 function handleApi(request: Request, env: Env): Promise<Response> | Response {
 	const url = new URL(request.url);

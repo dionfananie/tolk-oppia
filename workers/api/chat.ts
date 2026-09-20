@@ -6,7 +6,9 @@ import { Hono } from "hono";
 import { getSessionUser } from "../lib/session";
 import { generate } from "../ai/router";
 import { AIError } from "../ai/types";
-import { resolveCredential } from "../lib/credentials";
+import { getOrCreateEntitlement } from "../lib/entitlements";
+import { resolvePlatformLLM } from "../lib/credentials-platform";
+import { resolveUserCredential } from "../lib/credentials-user";
 
 const json = (data: unknown, status = 200) =>
 	new Response(JSON.stringify(data), {
@@ -65,7 +67,10 @@ chatApp.post("/chat", async (c) => {
 		return json({ error: "provider, model, and messages are required" }, 400);
 	}
 
-	const credential = await resolveCredential(db, master, userId, provider, model);
+	const entitlement = await getOrCreateEntitlement(db, userId);
+	const credential = entitlement.planId === "byok"
+		? await resolveUserCredential(db, master, userId, provider, model)
+		: await resolvePlatformLLM(db, master);
 	if (!credential) {
 		return json({ error: "provider_not_available", message: "This plan does not have a configured provider credential." }, 403);
 	}
