@@ -79,6 +79,9 @@ export default function Home() {
 							<a href="#byok" className="rounded-lg px-3.5 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface hover:text-ink">
 								Your keys
 							</a>
+							<Link to="/pricing" className="rounded-lg px-3.5 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface hover:text-ink">
+								Pricing
+							</Link>
 						</nav>
 						<div className="ml-auto flex items-center gap-2">
 							<ThemeToggle />

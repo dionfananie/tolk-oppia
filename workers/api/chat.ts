@@ -3,10 +3,10 @@
 // ke browser. Dilkukan setelah login; provider/model dipilih di frontend dr list connected.
 
 import { Hono } from "hono";
-import { decryptKey } from "../lib/crypto";
 import { getSessionUser } from "../lib/session";
 import { generate } from "../ai/router";
 import { AIError } from "../ai/types";
+import { resolveCredential } from "../lib/credentials";
 
 const json = (data: unknown, status = 200) =>
 	new Response(JSON.stringify(data), {
@@ -65,33 +65,23 @@ chatApp.post("/chat", async (c) => {
 		return json({ error: "provider, model, and messages are required" }, 400);
 	}
 
-	// Ambil credential utk (user, provider), decrypt key di server.
-	const row = await db
-		.prepare(
-			`SELECT encrypted_api_key, iv, base_url FROM user_ai_credentials
-			 WHERE user_id = ? AND provider = ?`,
-		)
-		.bind(userId, provider)
-		.first<{ encrypted_api_key: string; iv: string; base_url: string | null }>();
-
-	if (!row) {
-		return json({ error: "no_api_key", message: `No API key saved for provider "${provider}". Open Settings, then AI providers, and add one.` }, 404);
+	const credential = await resolveCredential(db, master, userId, provider, model);
+	if (!credential) {
+		return json({ error: "provider_not_available", message: "This plan does not have a configured provider credential." }, 403);
 	}
 	if (rateLimited(`chat:${userId}:${provider}`)) return json({ error: "RATE_LIMITED: too many requests to this provider." }, 429);
 
-	const apiKey = await decryptKey(row.encrypted_api_key, row.iv, master);
-
 	try {
 		const result = await generate(provider as never, {
-			apiKey,
-			model,
+			apiKey: credential.apiKey,
+			model: credential.model,
 			messages,
 			temperature,
 			maxTokens,
 			json: wantJson,
-			baseURL: row.base_url ?? undefined,
+			baseURL: credential.baseURL,
 		});
-		return json({ content: result.content, usage: result.usage });
+		return json({ content: result.content, usage: result.usage, source: credential.owner });
 	} catch (err) {
 		if (err instanceof AIError) {
 			return json({ error: err.message, code: err.code, retryable: err.retryable }, httpFor(err.code));

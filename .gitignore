@@ -127,6 +127,9 @@ web_modules/
 # Yarn Integrity file
 .yarn-integrity
 
+# Local Cloudflare credentials
+.cf-token
+
 # dotenv environment variable files
 .env
 .env.development.local

@@ -80,4 +80,4 @@ export function providerCatalog() {
 }
 
 // Re-export helpers yang dibutuhkan endpoint lain.
-export { OpenAICompatibleProvider };
+export { OpenAICompatibleProvider, getProvider };
